@@ -36,7 +36,7 @@ public class CourseCheck {
             switch (args[i]) {
                 case "--mysql": mysql = true; break;
                 case "--only": only = args[++i]; break;
-                case "--cp": extraCp = args[++i]; break;
+                case "--cp": extraCp = absoluteClasspath(args[++i]); break;
                 case "--root": root = Paths.get(args[++i]); break;
                 default: throw new IllegalArgumentException("unknown option " + args[i]);
             }
@@ -72,6 +72,17 @@ public class CourseCheck {
         }
         System.out.printf("%d passed, %d failed, %d skipped%n", pass, fail, skip);
         System.exit(fail == 0 ? 0 : 1);
+    }
+
+    /** Programs run in a temporary folder, so relative classpath entries are made absolute. */
+    static String absoluteClasspath(String cp) {
+        StringBuilder b = new StringBuilder();
+        for (String part : cp.split(java.io.File.pathSeparator)) {
+            if (part.isEmpty()) continue;
+            if (b.length() > 0) b.append(java.io.File.pathSeparator);
+            b.append(Paths.get(part).toAbsolutePath().normalize());
+        }
+        return b.toString();
     }
 
     static String check(Path dir, String mainClass, String extraCp) throws Exception {
