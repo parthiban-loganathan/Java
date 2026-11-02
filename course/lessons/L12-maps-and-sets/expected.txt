@@ -1,0 +1,7 @@
+lookup table: {Tree cover=73, Shrubland=70, Cropland=85, Built-up=90}
+CN of Cropland = 85
+has Water? false, default for Water = 98
+cell counts: {Built-up=1, Cropland=3, Shrubland=2, Tree cover=4}
+area-weighted CN = 77.7
+distinct classes: [Built-up, Cropland, Shrubland, Tree cover] (4)
+add Shrubland again -> false

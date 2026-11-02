@@ -1,0 +1,10 @@
+Produced: Message 1
+Consumed: Message 1
+Produced: Message 2
+Consumed: Message 2
+Produced: Message 3
+Consumed: Message 3
+Produced: Message 4
+Consumed: Message 4
+Produced: Message 5
+Consumed: Message 5

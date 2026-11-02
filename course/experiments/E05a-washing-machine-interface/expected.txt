@@ -1,0 +1,3 @@
+Washing machine is running.
+Washing machine is consuming electricity.
+Electricity consumption: 0.38 kWh

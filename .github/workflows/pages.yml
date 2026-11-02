@@ -1,0 +1,66 @@
+name: Deploy website to GitHub Pages
+
+# Enable once: repository Settings -> Pages -> Build and deployment -> Source: GitHub Actions
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - working-directory: android-app
+        run: ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+
+  build:
+    needs: android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build site
+        run: bash tools/build-site.sh build/site
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: build/site/downloads
+      - name: Name the APK
+        run: mv build/site/downloads/app-debug.apk build/site/downloads/civiltech-catchment-debug.apk
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

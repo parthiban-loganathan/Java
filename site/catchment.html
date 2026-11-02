@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3D Catchment Simulator</title>
+  <meta name="description" content="Educational 3D catchment and hourly rainfall-runoff simulation for a hill catchment beside VIT Vellore, built from open data and Java.">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/lab.css">
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css">
+  <script src="assets/vendor/leaflet/leaflet.js"></script>
+  <script src="assets/vendor/chartjs/chart.umd.js"></script>
+  <script type="importmap">
+    { "imports": { "three": "./assets/vendor/three/three.module.min.js",
+                   "three/addons/": "./assets/vendor/three/addons/" } }
+  </script>
+</head>
+<body>
+<main>
+  <h1>3D catchment and hourly rainfall-runoff</h1>
+  <p class="muted" style="max-width:900px">A hill catchment immediately south-east of VIT Vellore, delineated by Java from the
+    Copernicus 30 m elevation model, with land cover from ESA WorldCover and hourly ERA5 rainfall of Cyclone Fengal
+    (29 November - 3 December 2024). Change the outlet, the rainfall or the soil, press <b>Run simulation</b>, then play the
+    animation.</p>
+  <div class="notice warn small" style="margin-bottom:14px"><b>Educational model.</b> The methods are standard engineering
+    methods (SCS Curve Number, SCS unit hydrograph, Kirpich, time-area), but this catchment has no stream gauge, so the model
+    is <b>not calibrated or validated</b>. Use the numbers to learn how the methods behave, not for design or flood warning.
+    <a href="docs.html#05-hydrology-method">Method and limitations</a>.</div>
+  <div id="load-status" class="notice small"><span class="spinner"></span> Loading open data and the Java engine...</div>
+
+  <div class="app" id="app" hidden>
+    <div class="controls">
+      <div class="card">
+        <h3>1. Catchment outlet</h3>
+        <div id="ws-info" class="small"></div>
+        <p class="small muted" style="margin:6px 0">Click the 3D terrain or the map to move the outlet; Java snaps it to the
+          strongest flow line within 3 cells and re-delineates the catchment.</p>
+        <button class="btn sm" id="reset-outlet">Default outlet</button>
+      </div>
+
+      <div class="card">
+        <h3>2. Rainfall</h3>
+        <div class="field">
+          <label for="rain-source">Source</label>
+          <select id="rain-source">
+            <option value="era5">ERA5 reanalysis (bundled, 16 Nov - 16 Dec 2024)</option>
+            <option value="openmeteo">Open-Meteo archive (live download, any date)</option>
+            <option value="csv">Upload a CSV file</option>
+            <option value="manual">Type hourly values</option>
+          </select>
+        </div>
+        <div id="src-era5">
+          <div class="row">
+            <div class="field"><label for="era5-start">First hour starts (IST)</label><input type="datetime-local" id="era5-start" step="3600"></div>
+            <div class="field" style="flex:0 1 90px"><label for="era5-hours">Hours</label><input type="number" id="era5-hours" min="1" max="720" value="96"></div>
+          </div>
+          <div class="row" style="gap:6px;margin-bottom:6px">
+            <button class="btn sm" data-preset="312,96">Cyclone Fengal</button>
+            <button class="btn sm" data-preset="600,72">11-13 Dec 2024</button>
+            <button class="btn sm" data-preset="0,720">Whole month</button>
+          </div>
+          <p class="small muted" style="margin:0">Rainfall is interpolated bilinearly from the four surrounding ERA5 grid points
+            to the catchment centroid (by Java).</p>
+        </div>
+        <div id="src-openmeteo" hidden>
+          <div class="row">
+            <div class="field"><label for="om-start">Start date</label><input type="date" id="om-start" value="2024-11-29"></div>
+            <div class="field"><label for="om-end">End date</label><input type="date" id="om-end" value="2024-12-02"></div>
+          </div>
+          <button class="btn sm" id="om-fetch">Download hourly ERA5 from Open-Meteo</button>
+          <p class="small muted" style="margin:6px 0 0">Queries <code>archive-api.open-meteo.com</code> (ERA5, CC BY 4.0) at the
+            catchment centroid. Needs an internet connection; the archive lags real time by about a week.</p>
+        </div>
+        <div id="src-csv" hidden>
+          <input type="file" id="csv-file" accept=".csv,.txt,text/csv">
+          <p class="small muted" style="margin:6px 0 0">One row per hour; the <b>last column</b> is rainfall in mm. A header line
+            and lines starting with <code>#</code> are ignored. The first column may hold a time stamp.</p>
+        </div>
+        <div id="src-manual" hidden>
+          <textarea id="manual-values" rows="4" spellcheck="false">0 2 5 12 25 18 9 4 2 1 0 0</textarea>
+          <p class="small muted" style="margin:6px 0 0">Hourly rainfall in mm, separated by spaces, commas or new lines.</p>
+        </div>
+        <div id="rain-summary" class="small" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <h3>3. Soil and land cover</h3>
+        <div class="field">
+          <label for="soil">Hydrologic soil group (NRCS)</label>
+          <select id="soil">
+            <option value="0">A: low runoff potential (sands)</option>
+            <option value="1">B: moderately low</option>
+            <option value="2" selected>C: moderately high</option>
+            <option value="3">D: high runoff potential (clays, shallow rock)</option>
+          </select>
+        </div>
+        <p class="small muted" style="margin:0 0 6px">No open soil-group map is bundled; choose the group that matches your
+          field knowledge. Curve numbers (TR-55, condition II) can be edited:</p>
+        <div class="table-wrap cn-table"><table id="cn-table"></table></div>
+      </div>
+
+      <div class="card">
+        <h3>4. Method settings</h3>
+        <div class="row">
+          <div class="field"><label for="step">Step (min)</label>
+            <select id="step"><option>5</option><option selected>10</option><option>15</option><option>30</option><option>60</option></select></div>
+          <div class="field"><label for="tc">Tc override (h)</label><input type="number" id="tc" min="0" step="0.1" value="0" title="0 = Kirpich"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="clark">Clark R (h)</label><input type="number" id="clark" min="0" step="0.1" value="0"></div>
+          <div class="field"><label for="velocity">Travel times</label>
+            <select id="velocity"><option value="0">uniform velocity</option><option value="1">slope weighted</option></select></div>
+        </div>
+        <button class="btn primary" id="run" style="width:100%;justify-content:center">Run simulation (Java)</button>
+        <div id="run-status" class="small muted" style="margin-top:6px"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="viewport" id="viewport">
+        <div class="hud" id="hud">Drag to rotate, scroll to zoom, right-drag to pan.</div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="timeline">
+        <button class="btn sm" id="play" disabled>Play</button>
+        <input type="range" id="time" min="0" max="0" value="0" step="0.01" disabled aria-label="Animation time">
+        <span id="time-label" class="small muted" style="min-width:150px"></span>
+        <label class="small" for="layer">Colour</label>
+        <select id="layer" style="width:auto">
+          <option value="landcover">Land cover</option>
+          <option value="elevation">Elevation</option>
+          <option value="accumulation">Flow accumulation</option>
+          <option value="cn">Curve number</option>
+          <option value="travel">Travel time to outlet</option>
+        </select>
+        <label class="small" for="exag">Vertical &times;</label>
+        <input type="range" id="exag" min="1" max="8" step="0.5" value="3" style="width:90px">
+      </div>
+
+      <div class="grid cols-4" id="stats" style="margin-top:14px"></div>
+
+      <div class="grid cols-2" style="margin-top:14px">
+        <div class="card">
+          <h3>Rainfall and discharge at the outlet</h3>
+          <div class="chart-box"><canvas id="hydrograph"></canvas></div>
+          <p class="small muted" style="margin-bottom:0">Bars: catchment rainfall (mm/h, top axis reversed). Lines: direct runoff
+            discharge; baseflow is not modelled.</p>
+        </div>
+        <div class="card">
+          <h3>Map</h3>
+          <div id="map"></div>
+          <p class="small muted" style="margin-bottom:0">Circles: ERA5 grid points sized by rainfall in the selected window.
+            Outline: catchment delineated by Java.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">Hourly results</h3>
+          <button class="btn sm" id="download">Download CSV</button>
+        </div>
+        <div class="table-wrap" style="max-height:360px;margin-top:10px"><table id="hourly"></table></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h3>What the Java engine does when you press Run</h3>
+        <ol class="small">
+          <li><b>Depression filling</b> (Priority-Flood + &epsilon;, Barnes et al. 2014) and <b>D8 flow directions</b>
+            (O'Callaghan and Mark 1984) on the 2 arc-second (about 60 m) grid; flow accumulation in topological order.</li>
+          <li><b>Catchment</b>: every cell whose D8 path reaches the outlet; longest flow path L, drop H, slope S = H/L.</li>
+          <li><b>Time of concentration</b>: Kirpich (1940), Tc [min] = 0.0195 L<sup>0.77</sup> S<sup>-0.385</sup>.</li>
+          <li><b>Runoff generation</b> cell by cell: SCS Curve Number, S = 25400/CN - 254, Ia = 0.2 S,
+            Q = (P - Ia)<sup>2</sup>/(P - Ia + S) on cumulative rainfall (USDA NRCS NEH-630 Ch. 10).</li>
+          <li><b>Routing A</b>: SCS curvilinear dimensionless unit hydrograph (NEH-630 Ch. 16), lag 0.6 Tc,
+            q<sub>p</sub> = 0.208 A / T<sub>p</sub>.</li>
+          <li><b>Routing B</b>: distributed time-area translation along the D8 paths with travel times scaled to Tc, optionally
+            followed by a Clark linear reservoir (storage coefficient R). The animation shows routing B.</li>
+        </ol>
+        <p class="small muted" style="margin-bottom:0">Source: <a href="https://github.com/parthiban-loganathan/Java/tree/main/java/civiltech-core/src/main/java/civiltech">java/civiltech-core</a>.
+          The same classes run on the JVM (<code>civiltech.lab.Cli</code>) and in the Android app, with identical results.</p>
+      </div>
+    </div>
+  </div>
+</main>
+<script type="module" src="assets/js/catchment.js"></script>
+</body>
+</html>

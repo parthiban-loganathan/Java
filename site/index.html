@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Civil Engineering Innovation Lab</title>
+  <meta name="description" content="Open, student-driven laboratory at VIT Vellore where first-year civil engineers learn Java by building real engineering applications with open data.">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/lab.css">
+</head>
+<body>
+<main>
+  <section class="hero">
+    <span class="badge accent">VIT Vellore &middot; School of Civil Engineering &middot; open source</span>
+    <h1>Civil Engineering Innovation Lab</h1>
+    <p class="lead">First-year civil engineers learn programming by building working software for real
+      engineering problems, with open data, free tools and public source code. Every application on
+      this site runs in your browser; every line of its code is on GitHub.</p>
+    <div class="row" style="margin-top:14px">
+      <a class="btn primary" href="learn.html">Start learning Java</a>
+      <a class="btn" href="catchment.html">Open the 3D catchment simulator</a>
+      <a class="btn" href="docs.html#03-student-github-guide">Join with your team</a>
+    </div>
+  </section>
+
+  <h2>What you will find here</h2>
+  <div class="grid cols-3">
+    <a class="card" href="learn.html" style="color:inherit;text-decoration:none">
+      <h3>Learn Java from zero</h3>
+      <p class="muted small">14 lessons (what a program is, <code>int</code>, <code>char</code>, <code>double</code>,
+        arrays, <code>ArrayList</code> and <code>Vector</code>, classes, maps, exceptions) and the 23 BACSE102 lab
+        experiments. Read the explanation, change the input, press <b>Run</b>: the real Java program runs in the page.</p>
+    </a>
+    <a class="card" href="catchment.html" style="color:inherit;text-decoration:none">
+      <h3>3D catchment &amp; hourly rainfall-runoff</h3>
+      <p class="muted small">A hill catchment beside VIT, built from the Copernicus 30 m DEM and ESA WorldCover, driven
+        by ERA5 hourly rainfall of Cyclone Fengal (Nov-Dec 2024). Java delineates the catchment, computes SCS Curve
+        Number runoff and routes the flow; Three.js animates it.</p>
+    </a>
+    <a class="card" href="starter/index.html" style="color:inherit;text-decoration:none">
+      <h3>CivilTech Innovation Starter</h3>
+      <p class="muted small">One template for every team: introduction page, data input, CSV upload, a Java calculation
+        module, charts, map, optional 3D, results table and automatic deployment to GitHub Pages.</p>
+    </a>
+    <a class="card" href="projects.html" style="color:inherit;text-decoration:none">
+      <h3>Student project directory</h3>
+      <p class="muted small">Applications built by student teams, each with its live demo, source code, datasets and
+        team. Teams add their project with a pull request.</p>
+    </a>
+    <div class="card">
+      <h3>Android app from the same Java</h3>
+      <p class="muted small">The hydrology code that runs in this website is compiled unchanged into an Android app,
+        built automatically by GitHub Actions.</p>
+      <div class="row"><a class="btn sm primary" href="downloads/civiltech-catchment-debug.apk">Download APK</a>
+        <a class="btn sm" href="docs.html#07-android-app">How it works</a></div>
+    </div>
+    <a class="card" href="docs.html#01-architecture" style="color:inherit;text-decoration:none">
+      <h3>How the lab is built</h3>
+      <p class="muted small">Architecture, free-tier limits of GitHub, where Java runs, where JavaScript runs, and why the
+        whole lab is a static website.</p>
+    </a>
+  </div>
+
+  <h2>How a student project flows</h2>
+  <div class="flow">
+    <div class="step"><b>Identify a problem</b><div class="muted small">Something real on campus or in Vellore: flooding, materials, traffic, water.</div></div>
+    <div class="step"><b>Find open data</b><div class="muted small">DEM, land cover, rainfall, OpenStreetMap and other openly licensed datasets with a clear licence.</div></div>
+    <div class="step"><b>Algorithm and flowchart</b><div class="muted small">Hand calculation first; then the steps in plain language.</div></div>
+    <div class="step"><b>Java module</b><div class="muted small">Pure calculation classes, tested on the JVM.</div></div>
+    <div class="step"><b>Web interface</b><div class="muted small">Copy the starter template: inputs, charts, map.</div></div>
+    <div class="step"><b>Publish</b><div class="muted small">Push to GitHub; Actions builds and deploys to Pages.</div></div>
+    <div class="step"><b>Submit</b><div class="muted small">Pull request to this lab's project directory.</div></div>
+  </div>
+
+  <h2>Where Java runs, and where JavaScript runs</h2>
+  <div class="card">
+    <div class="table-wrap"><table>
+      <thead><tr><th>Part</th><th>Technology</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Engineering calculations, data processing, course programs</td><td><b>Java</b>, compiled to JavaScript at build time by <a href="https://teavm.org/">TeaVM</a> (Apache-2.0)</td><td>Students write and test Java; the browser runs the translated code, no server needed.</td></tr>
+        <tr><td>Page layout, buttons, file upload</td><td>HTML, CSS, JavaScript</td><td>The native language of the browser; kept thin.</td></tr>
+        <tr><td>3D terrain and animation</td><td><a href="https://threejs.org/">Three.js</a> (MIT)</td><td>WebGL rendering is a JavaScript task.</td></tr>
+        <tr><td>Charts</td><td><a href="https://www.chartjs.org/">Chart.js</a> (MIT)</td><td>Hyetographs, hydrographs, tables.</td></tr>
+        <tr><td>Maps</td><td><a href="https://leafletjs.com/">Leaflet</a> (BSD-2) with OpenStreetMap tiles</td><td>Catchment boundary, outlet, rainfall grid.</td></tr>
+        <tr><td>Android app</td><td>Java (same source files)</td><td>Shows that one Java core serves web, desktop and mobile.</td></tr>
+        <tr><td>Hosting and deployment</td><td>GitHub Pages + GitHub Actions</td><td>Free for public repositories.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small muted" style="margin-bottom:0">JavaScript calls exported Java methods with numbers, typed arrays and JSON text; Java returns
+      JSON. See <a href="docs.html#01-architecture">the architecture guide</a>.</p>
+  </div>
+</main>
+<script type="module">
+  import { chrome } from './assets/js/common.js';
+  chrome('index.html');
+</script>
+</body>
+</html>

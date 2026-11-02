@@ -1,0 +1,6 @@
+Enter span (m) and load (kN/m):
+Enter number of bars and soil group letter:
+Enter site name (may contain spaces):
+Site: VIT Vellore, Katpadi
+Span 6.00 m, load 15.00 kN/m -> M = 67.50 kN m
+Bars: 4, hydrologic soil group: C

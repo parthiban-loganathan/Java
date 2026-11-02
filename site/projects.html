@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Directory</title>
+  <meta name="description" content="Applications built by student teams of the VIT Civil Engineering Innovation Lab.">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/lab.css">
+</head>
+<body>
+<main>
+  <h1>Project directory</h1>
+  <p class="muted" style="max-width:860px">Every project is a public GitHub repository owned by its team, with a live demo on
+    GitHub Pages. Teams add their entry to <code>projects/projects.json</code> through a pull request; an automatic check
+    validates it before a maintainer reviews it. <a href="docs.html#04-submit-a-project">How to submit</a>.</p>
+  <div class="filters">
+    <input type="text" id="q" placeholder="Search title, summary, tags" aria-label="Search projects">
+    <select id="category" aria-label="Category"><option value="">All categories</option></select>
+    <select id="status" aria-label="Status"><option value="">Any status</option><option>idea</option><option>in-progress</option><option>completed</option></select>
+  </div>
+  <div id="count" class="small muted"></div>
+  <div class="grid cols-3" id="list" style="margin-top:10px"></div>
+</main>
+<script type="module">
+  import { chrome, fetchJson, escapeHtml } from './assets/js/common.js';
+  chrome('projects.html');
+  const data = (await fetchJson('projects/projects.json')).projects;
+  const $ = id => document.getElementById(id);
+  [...new Set(data.map(p => p.category))].sort().forEach(c => $('category').insertAdjacentHTML('beforeend', `<option>${escapeHtml(c)}</option>`));
+  const statusBadge = s => `<span class="badge ${s === 'completed' ? 'ok' : s === 'in-progress' ? 'accent' : ''}">${s}</span>`;
+  function render() {
+    const q = $('q').value.toLowerCase(), cat = $('category').value, st = $('status').value;
+    const list = data.filter(p => (!cat || p.category === cat) && (!st || p.status === st) &&
+      (!q || [p.title, p.summary, p.team, ...(p.tags || [])].join(' ').toLowerCase().includes(q)));
+    $('count').textContent = `${list.length} of ${data.length} projects`;
+    $('list').innerHTML = list.map(p => `<article class="card project-card">
+      <div class="meta">${statusBadge(p.status)}<span class="badge">${escapeHtml(p.category)}</span><span class="badge">${escapeHtml(p.academicYear)}</span></div>
+      <h3 style="margin:0">${escapeHtml(p.title)}</h3>
+      <div class="small muted">${escapeHtml(p.team)}${p.members?.length ? ' &middot; ' + p.members.map(m => `<a href="https://github.com/${encodeURIComponent(m)}">@${escapeHtml(m)}</a>`).join(', ') : ''}</div>
+      <p class="small" style="margin:0">${escapeHtml(p.summary)}</p>
+      <p class="small muted" style="margin:0"><b>Java:</b> ${escapeHtml(p.javaRole)}</p>
+      <div class="small muted"><b>Data:</b> ${p.datasets.map(d => `<a href="${escapeHtml(d.url)}" rel="noopener">${escapeHtml(d.name)}</a> (${escapeHtml(d.licence)})`).join('; ')}</div>
+      <div class="links">${p.demo ? `<a class="btn sm primary" href="${escapeHtml(p.demo)}">Live demo</a>` : ''}<a class="btn sm" href="${escapeHtml(p.repository)}" rel="noopener">Source code</a></div>
+    </article>`).join('') || '<p class="muted">No project matches.</p>';
+  }
+  for (const id of ['q', 'category', 'status']) $(id).addEventListener('input', render);
+  render();
+</script>
+</body>
+</html>

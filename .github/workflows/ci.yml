@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  java-and-site:
+    name: Java tests, course check, browser check, site build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate project directory
+        run: python3 tools/validate_projects.py
+      - name: Build site (core unit tests, TeaVM, course files, starter template)
+        run: bash tools/build-site.sh build/site
+      - name: Course programs on the JDK (expected outputs)
+        run: java tools/CourseCheck.java
+      - name: Course programs in the browser build vs JDK
+        run: node tools/verification/browser_course_check.mjs java/web-bridge/target/js/civiltech.js course
+      - name: Hydrology in the browser build
+        run: node tools/verification/browser_hydrology_check.mjs java/web-bridge/target/js/civiltech.js site/data/catchment
+      - name: Same hydrology on the JVM
+        run: java -cp java/civiltech-core/target/classes civiltech.lab.Cli site/data/catchment/vellore_hills_grid.json site/data/catchment/era5_vellore_hourly.csv --from 312 --hours 96 | head -2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: build/site
+          retention-days: 7
+
+  jdbc-experiment:
+    name: Experiment 16 with a real MySQL server
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Create database and table (setup.sql)
+        run: mysql -h 127.0.0.1 -uroot -ppassword < course/experiments/E16-employee-jdbc/setup.sql
+      - name: Download MySQL Connector/J
+        run: |
+          mkdir -p lib
+          curl -fsSL -o lib/mysql-connector-j-9.1.0.jar https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/9.1.0/mysql-connector-j-9.1.0.jar
+      - name: Run EmployeeApp with the scripted input
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/company_db
+          DB_USER: root
+          DB_PASSWORD: password
+        run: java tools/CourseCheck.java --mysql --only E16 --cp "lib/mysql-connector-j-9.1.0.jar"
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build debug APK
+        working-directory: android-app
+        run: ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14

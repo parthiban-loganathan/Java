@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CivilTech Innovation Starter - Java build.
+  mvn package      compiles the Java code, runs the tests and translates the Java to
+                   JavaScript (target/js/app.js) with TeaVM.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>lab.civiltech</groupId>
+  <artifactId>civiltech-starter</artifactId>
+  <version>1.0.0</version>
+  <name>CivilTech Innovation Starter</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <teavm.version>0.16.0</teavm.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-classlib</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.11.4</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.2</version>
+      </plugin>
+      <plugin>
+        <groupId>org.teavm</groupId>
+        <artifactId>teavm-maven-plugin</artifactId>
+        <version>${teavm.version}</version>
+        <executions>
+          <execution>
+            <id>javascript</id>
+            <!-- after the tests, so a failing test stops the build -->
+            <phase>package</phase>
+            <goals><goal>compile</goal></goals>
+            <configuration>
+              <mainClass>app.WebApi</mainClass>
+              <targetDirectory>${project.build.directory}/js</targetDirectory>
+              <targetFileName>app.js</targetFileName>
+              <jsModuleType>ES2015</jsModuleType>
+              <minifying>true</minifying>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -1,0 +1,2 @@
+Warrior Attack: 75
+Warrior defends with shield!

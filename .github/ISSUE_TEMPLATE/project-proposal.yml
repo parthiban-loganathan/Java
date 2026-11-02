@@ -1,0 +1,44 @@
+name: Project proposal
+description: Propose a team project for the Civil Engineering Innovation Lab
+title: "[Proposal] "
+labels: ["proposal"]
+body:
+  - type: input
+    id: team
+    attributes:
+      label: Team name and batch
+      placeholder: Team 7, Batch 2026
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Who has the problem, where, and what decision will your application support?
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Open data
+      description: Dataset names, links and licences you plan to use.
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: Engineering method
+      description: Formulas, standards (IS codes, NRCS, ...) or algorithms, with references.
+    validations:
+      required: true
+  - type: textarea
+    id: java
+    attributes:
+      label: What the Java module will compute
+    validations:
+      required: true
+  - type: textarea
+    id: roles
+    attributes:
+      label: Team roles
+      description: GitHub usernames and the role of each member.

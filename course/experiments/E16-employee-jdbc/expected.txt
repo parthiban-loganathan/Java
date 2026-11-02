@@ -1,0 +1,31 @@
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit
+Employee added.
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit
+Employee added.
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit
+ID: 1 | Name: Asha Raman | Salary: 55000.00
+ID: 2 | Name: Vikram Iyer | Salary: 48000.00
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit
+Updated.
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit
+ID: 1 | Name: Asha Raman | Salary: 60000.00
+ID: 2 | Name: Vikram Iyer | Salary: 48000.00
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit
+Deleted.
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit
+ID: 1 | Name: Asha Raman | Salary: 60000.00
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit
+Not found.
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit
+Invalid choice.
+
+1. Add  2. View  3. Update Salary  4. Delete  5. Exit

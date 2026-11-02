@@ -1,0 +1,6 @@
+skipped "heavy": not a number
+skipped "-3": rainfall cannot be negative: -3.0
+valid values: 3, rejected: 2, total rain: 41.8 mm
+caught ArrayIndexOutOfBoundsException
+5.0 / 0 = Infinity
+integer division by zero -> ArithmeticException

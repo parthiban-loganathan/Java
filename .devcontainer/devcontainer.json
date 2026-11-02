@@ -1,0 +1,23 @@
+{
+  "name": "Civil Engineering Innovation Lab (JDK 21, Maven, Node, MySQL)",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": { "version": "21", "installMaven": "true" },
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  },
+  "containerEnv": {
+    "DB_URL": "jdbc:mysql://localhost:3306/company_db",
+    "DB_USER": "root",
+    "DB_PASSWORD": "password"
+  },
+  "postCreateCommand": "mkdir -p ~/lib && curl -fsSL -o ~/lib/mysql-connector-j-9.1.0.jar https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/9.1.0/mysql-connector-j-9.1.0.jar && sudo apt-get update -qq && sudo apt-get install -y -qq default-mysql-client",
+  "forwardPorts": [8000],
+  "portsAttributes": { "8000": { "label": "website preview" } },
+  "customizations": {
+    "vscode": {
+      "extensions": ["vscjava.vscode-java-pack", "redhat.vscode-xml"]
+    }
+  }
+}

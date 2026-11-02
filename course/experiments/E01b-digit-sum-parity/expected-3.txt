@@ -1,0 +1,2 @@
+Sum of digits: 12
+Parity: Even

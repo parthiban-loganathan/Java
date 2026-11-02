@@ -1,0 +1,6 @@
+B1: span 6.0 m, w 15.0 kN/m, M 67.50 kN m, V 45.00 kN
+B2: span 4.5 m, w 22.0 kN/m, M 55.69 kN m, V 49.50 kN
+after setLoad: B1: span 6.0 m, w 18.0 kN/m, M 81.00 kN m, V 54.00 kN
+beams created: 3
+critical beam -> B1: span 6.0 m, w 18.0 kN/m, M 81.00 kN m, V 54.00 kN
+rejected: span must be positive: -3.0

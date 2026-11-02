@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- CHANGE THIS: the name of your application (two to four words) -->
+  <title>Sub-catchment Runoff Calculator</title>
+  <meta name="description" content="CivilTech Innovation Starter: an example application with a Java calculation module, charts, a map and a 3D view.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="vendor/chartjs/chart.umd.js"></script>
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+  </script>
+</head>
+<body>
+<header class="site-header">
+  <div class="bar">
+    <a class="brand" href="#intro"><img src="favicon.svg" width="28" height="28" alt="">
+      <span>Sub-catchment Runoff Calculator<small>CivilTech Innovation Starter &middot; example project</small></span></a>
+    <nav class="nav" style="display:flex">
+      <a href="#intro">Introduction</a><a href="#data">Data</a><a href="#results">Results</a><a href="#method">Method</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <!-- ============ 1. PROJECT INTRODUCTION (CHANGE THIS) ============ -->
+  <section id="intro">
+    <span class="badge accent">Team: your team name &middot; VIT Civil Engineering Innovation Lab</span>
+    <h1>How much storm runoff does each part of a catchment produce?</h1>
+    <p class="muted" style="max-width:860px"><b>Problem.</b> During Cyclone Fengal (29 November - 3 December 2024) about
+      127 mm of rain fell on the hills south-east of VIT. Which sub-catchments produced the most runoff, and how much water
+      reached the stream each hour? <b>Objective.</b> Compute runoff depth and volume for every sub-catchment with the SCS
+      Curve Number method, from open data, in a page anyone can use.</p>
+    <div class="notice small">This page is the worked example of the <b>CivilTech Innovation Starter</b>. Replace the text, the
+      data files in <code>web/data/</code> and the Java classes in <code>src/main/java/app/</code> with your own project.
+      The layout, charts, map, 3D view and deployment keep working.</div>
+  </section>
+
+  <!-- ============ 2. DATA INPUT ============ -->
+  <section id="data">
+    <h2>1. Input data</h2>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Sub-catchments (CSV)</h3>
+        <p class="small muted">Columns: <code>name, centroid_lat, centroid_lon, area_km2, curve_number</code> (other columns are
+          ignored). Sample: five tributaries and the main-stream corridor of the demonstration catchment, derived from the
+          Copernicus DEM and ESA WorldCover.</p>
+        <input type="file" id="sub-file" accept=".csv,text/csv" aria-label="Upload sub-catchment CSV">
+        <textarea id="sub-csv" rows="8" spellcheck="false" style="margin-top:8px"></textarea>
+      </div>
+      <div class="card">
+        <h3>Hourly rainfall (CSV)</h3>
+        <p class="small muted">One row per hour, rainfall in mm in the <b>last column</b>. Sample: ERA5 reanalysis for Cyclone
+          Fengal at the catchment centroid (96 hours).</p>
+        <input type="file" id="rain-file" accept=".csv,text/csv" aria-label="Upload rainfall CSV">
+        <textarea id="rain-csv" rows="8" spellcheck="false" style="margin-top:8px"></textarea>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary" id="calculate">Calculate with Java</button>
+      <button class="btn" id="reload">Reload sample data</button>
+      <span id="status" class="small muted"></span>
+    </div>
+  </section>
+
+  <!-- ============ 3. RESULTS DASHBOARD ============ -->
+  <section id="results">
+    <h2>2. Results</h2>
+    <div class="grid cols-4" id="cards"></div>
+    <div class="grid cols-2" style="margin-top:14px">
+      <div class="card"><h3>Rainfall and runoff volume per hour</h3><div class="chart-box"><canvas id="chart-time"></canvas></div></div>
+      <div class="card"><h3>Runoff volume by sub-catchment</h3><div class="chart-box"><canvas id="chart-bars"></canvas></div></div>
+      <div class="card"><h3>Map</h3><div id="map"></div><p class="small muted" style="margin-bottom:0">Circle area proportional to runoff volume.</p></div>
+      <div class="card"><h3>3D view (optional)</h3><div class="viewport" id="view3d" style="height:380px"></div>
+        <p class="small muted" style="margin-bottom:0">Column height proportional to runoff depth, width to area. Drag to rotate.</p></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Table</h3>
+      <div class="table-wrap"><table id="table"></table></div>
+    </div>
+  </section>
+
+  <!-- ============ 4. METHOD, DATA SOURCES, TEAM (CHANGE THIS) ============ -->
+  <section id="method">
+    <h2>3. Method and data</h2>
+    <div class="card prose" style="max-width:none">
+      <p><b>SCS Curve Number</b> (USDA NRCS, National Engineering Handbook Part 630, Chapter 10): for cumulative rainfall
+        <i>P</i>, potential retention <i>S</i> = 25400/CN - 254 mm and initial abstraction <i>I</i><sub>a</sub> = 0.2 <i>S</i>,
+        the cumulative runoff is <i>Q</i> = (<i>P</i> - <i>I</i><sub>a</sub>)<sup>2</sup> / (<i>P</i> - <i>I</i><sub>a</sub> + <i>S</i>)
+        when <i>P</i> &gt; <i>I</i><sub>a</sub>. Hourly runoff is the difference of consecutive cumulative values; volume = depth &times; area
+        (1 mm over 1 km² = 1000 m³). The calculation runs in Java (<code>src/main/java/app</code>), translated to JavaScript by TeaVM.</p>
+      <p><b>Limitations.</b> Runoff volumes only (no routing to the outlet, no baseflow); curve numbers assume hydrologic soil group C;
+        ERA5 is a 0.25&deg; reanalysis and smooths local extremes. Results are for learning, not design.</p>
+      <p><b>Data.</b> Copernicus GLO-30 DEM (&copy; DLR e.V. 2010-2014 and &copy; Airbus Defence and Space GmbH 2014-2018, provided
+        under COPERNICUS by the EU and ESA); ESA WorldCover 2021 v200 (CC BY 4.0); ERA5 hourly data (Hersbach et al., 2020;
+        contains modified Copernicus Climate Change Service information 2024). Map tiles &copy; OpenStreetMap contributors.</p>
+      <p><b>Team.</b> CHANGE THIS: names, GitHub usernames and roles of the five team members.</p>
+    </div>
+  </section>
+</main>
+<footer class="site-footer"><div class="inner"><span>Built with the CivilTech Innovation Starter &middot; MIT licence</span>
+  <span>Java (TeaVM) &middot; Chart.js &middot; Leaflet &middot; Three.js &middot; GitHub Pages</span></div></footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "CivilTech Innovation Starter (JDK 21, Maven)",
+  "image": "mcr.microsoft.com/devcontainers/java:1-21-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": { "version": "none", "installMaven": "true" }
+  },
+  "postCreateCommand": "mvn -B -q -DskipTests dependency:go-offline || true",
+  "forwardPorts": [8000],
+  "customizations": { "vscode": { "extensions": ["vscjava.vscode-java-pack"] } }
+}

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>lab.civiltech</groupId>
+    <artifactId>civiltech-lab</artifactId>
+    <version>1.0.0</version>
+  </parent>
+  <artifactId>web-bridge</artifactId>
+  <name>Browser bridge: Java compiled to JavaScript with TeaVM</name>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <repo.root>${project.basedir}/../..</repo.root>
+    <generated.course>${project.build.directory}/generated-sources/course</generated.course>
+  </properties>
+
+  <dependencies>
+    <!-- must stay BEFORE teavm-classlib: TeaVM takes the first class it finds on the classpath -->
+    <dependency>
+      <groupId>lab.civiltech</groupId>
+      <artifactId>teavm-patches</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>lab.civiltech</groupId>
+      <artifactId>civiltech-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-classlib</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- 1. Copy the browser-capable course programs into packages (tools/BuildCourse.java) -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <id>generate-course-sources</id>
+            <phase>generate-sources</phase>
+            <goals><goal>exec</goal></goals>
+            <configuration>
+              <executable>${java.home}/bin/java</executable>
+              <workingDirectory>${repo.root}</workingDirectory>
+              <arguments>
+                <argument>tools/BuildCourse.java</argument>
+                <argument>--course</argument>
+                <argument>course</argument>
+                <argument>--gen</argument>
+                <argument>${generated.course}</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- 2. Compile the generated sources together with the bridge -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <id>add-course-sources</id>
+            <phase>generate-sources</phase>
+            <goals><goal>add-source</goal></goals>
+            <configuration>
+              <sources><source>${generated.course}</source></sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- 3. Translate the bytecode to one JavaScript ES module -->
+      <plugin>
+        <groupId>org.teavm</groupId>
+        <artifactId>teavm-maven-plugin</artifactId>
+        <version>${teavm.version}</version>
+        <executions>
+          <execution>
+            <id>javascript</id>
+            <phase>process-classes</phase>
+            <goals><goal>compile</goal></goals>
+            <configuration>
+              <mainClass>lab.web.Bridge</mainClass>
+              <targetDirectory>${project.build.directory}/js</targetDirectory>
+              <targetFileName>civiltech.js</targetFileName>
+              <jsModuleType>ES2015</jsModuleType>
+              <minifying>true</minifying>
+              <optimizationLevel>ADVANCED</optimizationLevel>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
