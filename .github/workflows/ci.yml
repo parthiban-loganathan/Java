@@ -132,17 +132,19 @@ jobs:
             (cd "$d" && DB_URL=jdbc:mysql://127.0.0.1:3306/lab_db java -cp "$GITHUB_WORKSPACE/lib/mysql-connector-j-9.1.0.jar" Main.java < /dev/null > expected.txt)
             echo "== $d"; cat "$d/expected.txt"
           done
-      - name: Compile and run every course program and the SQL parity programs in Chromium
-        env:
-          EXTRA_PROGRAMS: build/sql-parity
+      - name: Chromium and a local web server for the site
+        id: browser
         run: |
           npm install --no-save --silent playwright@1.63.0
           npx playwright install --with-deps chromium > /dev/null
           (cd build/site && python3 -m http.server 8765 > /dev/null 2>&1 &)
           sleep 2
-          node tools/verification/browser_javac_check.mjs http://localhost:8765/ course javac-report.md
-      - name: Java Lab and Teacher pages end to end (typing, paste blocking, Check, Run, encrypted submission, replay)
-        if: always()
+      - name: Compile and run every course program and the SQL parity programs in Chromium
+        env:
+          EXTRA_PROGRAMS: build/sql-parity
+        run: node tools/verification/browser_javac_check.mjs http://localhost:8765/ course javac-report.md
+      - name: Java Lab and Teacher pages end to end (typing, paste blocking, Check, Run, encrypted submission, replay, session marking)
+        if: ${{ !cancelled() && steps.browser.outcome == 'success' }}
         run: node tools/verification/lab_page_check.mjs http://localhost:8765/
       - name: Report
         if: always()

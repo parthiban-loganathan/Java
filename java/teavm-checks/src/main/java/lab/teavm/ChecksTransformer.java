@@ -33,7 +33,14 @@ public final class ChecksTransformer {
     /** Transformed class file. */
     public static byte[] transform(byte[] classFile) {
         ClassReader reader = new ClassReader(classFile);
-        ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS);
+        ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS) {
+            // Never called with COMPUTE_MAXS (frames are copied, not computed). Overridden so that
+            // ASM's class-loader based default is not part of the in-browser compiler (TeaVM).
+            @Override
+            protected String getCommonSuperClass(String type1, String type2) {
+                return "java/lang/Object";
+            }
+        };
         reader.accept(new ClassVisitor(Opcodes.ASM9, writer) {
             @Override
             public MethodVisitor visitMethod(int access, String name, String descriptor, String signature,

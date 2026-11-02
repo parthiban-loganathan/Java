@@ -33,12 +33,25 @@ function toast(text) {
   setTimeout(() => el.remove(), 4000);
 }
 
-/** A file of the lab folder: fresh from GitHub, or the copy published with the website. */
+/**
+ * A file of the lab folder: fresh from GitHub (raw files, then the GitHub API if raw files are
+ * blocked by a network), or the copy published with the website (may be out of date).
+ */
+let controlSource = '';
 async function labFile(path, json = false) {
-  for (const url of [`${LAB.raw}lab/${path}?t=${Date.now()}`, `lab/${path}`]) {
+  const sources = [
+    [`${LAB.raw}lab/${path}?t=${Date.now()}`, {}, 'github'],
+    [`https://api.github.com/repos/${LAB.repo}/contents/lab/${path}?ref=${LAB.branch}`, { Accept: 'application/vnd.github.raw' }, 'github'],
+    [`lab/${path}`, {}, 'website'],
+  ];
+  for (const [url, headers, source] of sources) {
     try {
-      const r = await fetch(url, { cache: 'no-store' });
-      if (r.ok) return json ? await r.json() : await r.text();
+      const r = await fetch(url, { cache: 'no-store', headers });
+      if (r.ok) {
+        if (path === 'control.json') controlSource = source;
+        return json ? await r.json() : await r.text();
+      }
+      if (r.status === 404 && source === 'github' && url.startsWith(LAB.raw)) return null;   // file does not exist
     } catch { /* try the next source */ }
   }
   return null;
@@ -53,7 +66,7 @@ function openWindow(s, now = Date.now()) {
   return (s.windows || []).find(w => Date.parse(w.opened_at) <= now && now < windowEnd(w)) || null;
 }
 const timeText = ms => new Date(ms).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-const openSessions = () => (control?.sessions || []).filter(s => openWindow(s));
+const openSessions = () => (control?.sessions || []).filter(s => openWindow(s) || (controlSource === 'website' && s.windows?.length));
 
 function banner() {
   const open = openSessions();
@@ -61,6 +74,10 @@ function banner() {
   if (!control) {
     el.className = 'notice warn';
     el.textContent = 'The lab status could not be loaded (no internet?). Practice still works; submissions need GitHub.';
+  } else if (controlSource === 'website' && !open.length) {
+    el.className = 'notice warn';
+    el.textContent = 'GitHub could not be reached from this network, so the lab status shown may be out of date. '
+      + 'If your teacher says the assessment is open, choose it below and submit: GitHub\'s time decides.';
   } else if (open.length) {
     el.className = 'notice ok';
     el.innerHTML = open.map(s => {
@@ -244,7 +261,7 @@ $('check').addEventListener('click', async () => {
 let publicKey = null;
 async function submit() {
   const session = control?.sessions?.find(s => s.id === mode);
-  if (!session || !openWindow(session)) { toast('This assessment is not open now.'); return; }
+  if (!session || (!openWindow(session) && controlSource !== 'website')) { toast('This assessment is not open now.'); return; }
   const code = editor.getValue();
   if (code.trim().length < 20) { toast('Type your program first.'); return; }
   if (!publicKey) publicKey = await labFile('teacher-public-key.pem');
@@ -367,11 +384,14 @@ async function main() {
     compilerReady = true;
     $('compiler-status').textContent = `Java compiler ready (${((performance.now() - t0) / 1000).toFixed(1)} s)`;
     busy(false, '');
-  }, e => { $('compiler-status').textContent = 'The Java compiler could not start: ' + e.message; });
+  }, e => {
+    $('compiler-status').textContent = 'The Java compiler could not start (' + e.message + '). It needs an up-to-date '
+      + 'browser: Chrome or Edge 119+, Firefox 120+, Safari 18.2+. You can still type and submit.';
+  });
 }
 function updateSubmit() {
   const s = control?.sessions?.find(x => x.id === mode);
-  const open = !!(s && openWindow(s));
+  const open = !!(s && (openWindow(s) || controlSource === 'website'));
   $('submit').disabled = !open || !editor;
   $('submit').title = open ? '' : (mode === 'practice' ? 'Practice work is not submitted.' : 'This assessment is closed.');
 }
