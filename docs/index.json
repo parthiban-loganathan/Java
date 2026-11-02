@@ -60,9 +60,9 @@
     "repoPath": "docs/"
   },
   {
-    "id": "10-weekly-submissions",
-    "title": "10. Weekly lab submissions and marking",
-    "file": "10-weekly-submissions.md",
+    "id": "10-lab-assessments",
+    "title": "10. Java Lab assessments: set up, open, close, collect, mark",
+    "file": "10-lab-assessments.md",
     "repoPath": "docs/"
   }
 ]

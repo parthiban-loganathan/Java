@@ -97,6 +97,19 @@ downloads all work without a server.
 | Heavy processing (large rasters) | partly | pre-process with Python/Java in GitHub Actions and publish the result as a static file (this is how the lab's DEM and ERA5 data were prepared) |
 | Secret API keys | no (anything in a static site is public) | use keyless open APIs |
 
+## Lab assessments without a server
+
+The Java Lab (Guide 10) needs a compiler, a clock, an inbox and a private store; all four come from free services
+and open-source code, with no server of our own:
+
+| Need | Solution | Why it is trustworthy |
+|------|----------|----------------------|
+| Compile and run student Java | teavm-javac (OpenJDK 25 `javac` + TeaVM, Apache-2.0/GPLv2+CE) compiled to WebAssembly, built from pinned sources in GitHub Actions; each run in a Web Worker that is terminated at the time limit | runs on the student's device; nothing executes on GitHub |
+| Open/close by the teacher | `workflow_dispatch` workflow writing `lab/control.json`; only accounts with write access can run it | the button time is taken from GitHub's record of the run |
+| Inbox | a GitHub issue per submission, created from an issue form | GitHub's creation time decides acceptance; a bot comment keeps an unchangeable copy |
+| Confidentiality in a public repository | Web Crypto in the browser: RSA-OAEP 4096 wraps an AES-256-GCM key | only the private key, held by the teacher, decrypts |
+| Marking and logs | private repository + Actions: decrypt, re-run in Docker without network with hidden cases, typing-log metrics, similarity | hidden cases never leave the private repository |
+
 ## Free-tier facts that matter (checked November 2026)
 
 * **GitHub Free** accounts and organizations: unlimited public repositories; **GitHub Pages** for

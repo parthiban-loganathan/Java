@@ -34,6 +34,7 @@ async function show(id) {
   current = p;
   document.querySelectorAll('#toc a').forEach(a => a.classList.toggle('active', a.dataset.id === p.id));
   document.title = `${p.id} ${p.title.replace(/^Experiment [0-9a-c]+: /, '')}`;
+  $('lab-link').href = `lab.html?s=practice&q=${encodeURIComponent(p.id)}`;
   const base = `course/${p.path}/`;
   const md = await fetchText(base + 'README.md');
   const badges = [

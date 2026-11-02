@@ -119,7 +119,7 @@ async function courseQuestion(p) {
     if (exp === null) continue;
     cases.push({ input: await fetchText(`${base}input${suf}.txt`).catch(() => ''), expected: exp });
   }
-  return { id: p.id, title: p.title, markdown: await fetchText(base + 'README.md'), base, cases, note: p.browser ? '' : p.note };
+  return { id: p.id, title: p.title, markdown: await fetchText(base + 'README.md'), base, cases, note: p.javacNote || (p.browser ? '' : p.note) };
 }
 function questionIds() {
   if (mode === 'practice') return catalog.filter(p => !p.requires).map(p => p.id);
@@ -167,7 +167,12 @@ function showDiagnostics(diags) {
     type: /error/i.test(d.severity) ? 'error' : 'warning' })));
 }
 function diagText(diags) {
-  return diags.map(d => (d.lineNumber > 0 ? `Line ${d.lineNumber}: ` : '') + d.message).join('\n');
+  let text = diags.map(d => (d.lineNumber > 0 ? `Line ${d.lineNumber}: ` : '') + d.message).join('\n');
+  if (/\b(File(Writer|Reader|InputStream|OutputStream)|Object(Output|Input)Stream|java\.sql|DriverManager)\b/.test(editor.getValue())) {
+    text += '\n\nNote: files, object serialization and databases cannot be used inside the browser. Test this program in ' +
+      'GitHub Codespaces or on a lab PC; you can still submit it: the teacher marks it with the real JDK.';
+  }
+  return text;
 }
 async function compile() {
   $('file-name').textContent = runner.fileNameFor(editor.getValue());

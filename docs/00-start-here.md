@@ -175,4 +175,4 @@ When the entry is valid:
 | The robot did not comment on a submission | The title must start with `[Submission]`; the Submit page does this automatically. |
 
 Next: [9. Teaching and demonstration plan](09-teaching-plan.md), and
-[10. Weekly lab submissions and marking](10-weekly-submissions.md) to collect and mark every student's weekly programs.
+[10. Java Lab assessments](10-lab-assessments.md): open and close lab assessments, collect, mark and replay every student's work.

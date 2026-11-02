@@ -28,7 +28,7 @@ for (const group of ['lessons', 'experiments']) {
       cases.push({ input: fs.existsSync(inp) ? fs.readFileSync(inp, 'utf8') : '', expected: fs.readFileSync(exp, 'utf8') });
     }
     programs.push({ id: folder.split('-')[0], files, cases,
-      differs: /browserDiffers=true/.test(meta) || /browser=false/.test(meta) });   // documented in meta.properties
+      differs: /browserDiffers=true/.test(meta) || /browser=false/.test(meta) || /browserJavac=false/.test(meta) });   // documented in meta.properties
   }
 }
 

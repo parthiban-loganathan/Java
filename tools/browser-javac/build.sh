@@ -63,6 +63,61 @@ tasks.named("generateClassLib") {
 }
 GRADLE
 
+# Fix in the compile-time API converter: it renames TeaVM's class files (TMap$Entry ->
+# java/util/Map$Entry) but copied the InnerClasses, OuterClass and nest attributes unchanged, so
+# javac could not see nested JDK types such as Map.Entry. Rename them the same way.
+python3 - compiler/src/main/java/org/teavm/javac/StdlibConverter.java <<'PY'
+import sys
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+marker = "    class FieldVisitorImpl extends FieldVisitor {"
+assert marker in src and "visitInnerClass" not in src, "StdlibConverter changed upstream: review this patch"
+patch = """    // ---- added by the lab build (tools/browser-javac/build.sh)
+    private boolean hidden(String renamed) {
+        for (String excluded : EXCLUDED) {
+            if (renamed.startsWith(excluded)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void visitInnerClass(String name, String outerName, String innerName, int access) {
+        String renamed = rename(name);
+        if ((access & Opcodes.ACC_PRIVATE) != 0 || hidden(renamed)) {
+            return;
+        }
+        String outer = outerName == null ? null : rename(outerName);
+        String simple = innerName;
+        if (innerName != null && renamed.lastIndexOf('$') >= 0) {
+            simple = renamed.substring(renamed.lastIndexOf('$') + 1);
+        }
+        super.visitInnerClass(renamed, outer, simple, access);
+    }
+
+    @Override
+    public void visitOuterClass(String owner, String name, String descriptor) {
+        super.visitOuterClass(rename(owner), name, descriptor == null ? null : renameMethodDesc(descriptor));
+    }
+
+    @Override
+    public void visitNestHost(String nestHost) {
+        super.visitNestHost(rename(nestHost));
+    }
+
+    @Override
+    public void visitNestMember(String nestMember) {
+        String renamed = rename(nestMember);
+        if (!hidden(renamed)) {
+            super.visitNestMember(renamed);
+        }
+    }
+
+"""
+open(path, "w", encoding="utf-8").write(src.replace(marker, patch + marker, 1))
+PY
+
 export JAVA_HOME="$JAVA25_HOME"
 unset JAVA_TOOL_OPTIONS
 ./gradlew --no-daemon --quiet :compiler:buildWasmGC :compiler:buildTeaVMClassLib :compiler:generateClassLib

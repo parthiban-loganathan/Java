@@ -31,6 +31,7 @@ on:
 permissions:
   contents: write
   actions: read
+  issues: write
 
 concurrency:
   group: lab-control
@@ -47,6 +48,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: echo "now=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)" >> "$GITHUB_OUTPUT"
+      - name: Labels used by submissions (created once)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create lab-submission --color 0b6e8a --description "Java Lab submission" 2>/dev/null || true
+          gh label create lab-accepted --color 1d7a46 --description "Lab submission accepted" 2>/dev/null || true
+          gh label create lab-rejected --color b3261e --description "Lab submission rejected" 2>/dev/null || true
+          gh label create lab-accept-late --color 9a5b00 --description "Teacher: accept although late" 2>/dev/null || true
+          gh label create lab-ignore --color 5a6575 --description "Teacher: leave out of marking" 2>/dev/null || true
       - name: Update lab/control.json
         env:
           ACTION: ${{ inputs.action }}

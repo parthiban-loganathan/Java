@@ -133,6 +133,7 @@ public class BuildCourse {
                .append(",\"path\":").append(json(p.group() + "/" + p.folder()))
                .append(",\"browser\":").append("true".equals(m.getProperty("browser")))
                .append(",\"requires\":").append(json(m.getProperty("requires", "")))
+               .append(",\"javacNote\":").append(json(m.getProperty("javacNote", "")))
                .append(",\"note\":").append(json(m.getProperty("browserNote", "")))
                .append(",\"sources\":[").append(files.stream().map(BuildCourse::json).collect(Collectors.joining(",")))
                .append("],\"cases\":[").append(cases.stream().map(BuildCourse::json).collect(Collectors.joining(",")))

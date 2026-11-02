@@ -40,11 +40,12 @@ them, and the project work runs from week 6.
 
 **Check**: What does `;` do? Why is `7 / 2` equal to 3? Which type would you use for a span in metres?
 
-## Weekly submissions (from week 2)
+## Lab assessments (from week 2)
 
-Every experiment is submitted through the website's **Weekly lab** page into each student's private repository and
-collected by your gradebook at the deadline; set it up once with [10. Weekly lab submissions](10-weekly-submissions.md).
-Do Part B (student set-up, 10 minutes) at the end of week 1 or during GitHub session 1.
+During the lab hour students type each experiment or question on the website's **Java Lab** page, run and check it
+in the browser and press Submit; you open the assessment at the start and close it at the end with one button each.
+Set it up once with [10. Java Lab assessments](10-lab-assessments.md) (Part A, 30 minutes). Students only need a free
+GitHub account (Guide 3) before their first assessment.
 
 ## Week 2. Arithmetic, text and keyboard input (L03-L05, E01a, E01b)
 

@@ -33,6 +33,11 @@ each step says exactly where to click.
 3. On GitHub, click through the folders `course`, `site`, `java`. Click a file to read it. Nothing you do while
    reading can break anything.
 
+## Lab assessments (every lab hour)
+
+During the lab you type, run, check and submit programs on the website's **Java Lab** page; your GitHub account is
+only used to post the encrypted submission. Steps: [Guide 10, Part D](10-lab-assessments.md#part-d-what-students-do-put-this-on-the-board).
+
 ## Part 3. Create your team's project from the template (one member, 15 minutes)
 
 1. Open the **CivilTech Innovation Starter** repository (link from the teacher or the website's *Starter template*
