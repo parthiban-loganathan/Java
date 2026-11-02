@@ -154,13 +154,13 @@ def collect(api, key, out, tests_root, roster, session_filter, sandbox, timeout)
         labels = {l["name"] for l in issue.get("labels", [])}
         if "lab-ignore" in labels:
             continue
-        session = intake.field(issue.get("body") or "", "Session").strip()
+        session = intake.safe_id(intake.field(issue.get("body") or "", "Session"))
         if session_filter and session != session_filter:
             continue
         binary, source = package_of(issue, api.comments(issue["number"]))
         a = {"issue": issue["number"], "url": issue["html_url"], "github": issue["user"]["login"],
              "created_at": issue["created_at"], "session": session,
-             "question": intake.field(issue.get("body") or "", "Question").strip(), "source": source, "problems": []}
+             "question": intake.safe_id(intake.field(issue.get("body") or "", "Question")), "source": source, "problems": []}
         if binary is None:
             a.update(accepted=False, reason="no readable package")
             attempts.append(a)
@@ -174,10 +174,10 @@ def collect(api, key, out, tests_root, roster, session_filter, sandbox, timeout)
             continue
         a["data"] = data
         a["regno"] = SAFE.sub("", str(data.get("regno", "")).upper())[:20] or "UNKNOWN"
-        a["name"] = str(data.get("name", ""))[:80]
+        a["name"] = re.sub(r"[|<>\r\n\t]", " ", str(data.get("name", "")))[:80].strip()
         if data.get("session") != a["session"] or data.get("question") != a["question"]:
             a["problems"].append("issue says %s/%s but the package says %s/%s" % (a["session"], a["question"], data.get("session"), data.get("question")))
-            a["session"], a["question"] = str(data.get("session")), str(data.get("question"))
+            a["session"], a["question"] = intake.safe_id(str(data.get("session"))), intake.safe_id(str(data.get("question")))
         ok, reason = ctl.decide(control, a["session"], a["question"], ctl.parse_time(issue["created_at"]))
         if not ok and "lab-accept-late" in labels:
             ok, reason = True, "accepted by the teacher (label lab-accept-late); " + reason

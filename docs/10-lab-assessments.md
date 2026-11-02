@@ -209,6 +209,10 @@ characters, 10-30 active minutes, several runs and checks.
   Not available in the browser: files (`FileWriter`, `FileReader`: Experiments 8-10), object serialization
   (Experiments 11-12), JDBC (Experiment 16), `%e`. Those are marked on the real JDK by the gradebook as usual, so
   they can still be submitted; students then test them in Codespaces or on a lab PC.
+  Two small differences remain: an array index out of range stops the program instead of being catchable as
+  `ArrayIndexOutOfBoundsException` (Lesson 13), and some exception messages are worded differently (Experiment 6a).
+  The gradebook always marks on the real JDK 21. The compiler (about 5 MB) loads once per visit; compiling takes
+  1-2 seconds.
 * **Accounts.** Each student needs a GitHub account; the GitHub username is visible on the (encrypted) issue.
 * **Free limits.** Public repository: Actions minutes are free. Private gradebook: GitHub Free includes
   2,000 minutes a month; one collection of 60 students x 2 questions takes about 10-20 minutes.

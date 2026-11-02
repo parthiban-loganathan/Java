@@ -40,6 +40,11 @@ def field(body, label):
     return "" if v == "_No response_" else v
 
 
+def safe_id(text):
+    """Session or question id as typed in the issue, reduced to the characters ids may contain."""
+    return re.sub(r"[^A-Za-z0-9_-]", "", text or "")[:32]
+
+
 def local_time(t, zone):
     try:
         from zoneinfo import ZoneInfo
@@ -51,9 +56,9 @@ def local_time(t, zone):
 def evaluate(issue, control, public_pem):
     """Decision for one issue: dict(status, reason, session, question, sha256, package, notes)."""
     body = issue.get("body") or ""
-    session = field(body, "Session").strip()
-    question = field(body, "Question").strip()
-    receipt = field(body, "Receipt").strip().lower()
+    session = safe_id(field(body, "Session"))
+    question = safe_id(field(body, "Question"))
+    receipt = re.sub(r"[^0-9a-f]", "", field(body, "Receipt").lower())[:16]
     created = ctl.parse_time(issue["created_at"])
     result = {"session": session, "question": question, "created_at": issue["created_at"],
               "sha256": None, "package": None, "notes": []}

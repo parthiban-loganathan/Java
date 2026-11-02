@@ -201,6 +201,9 @@ class IntakeTest(unittest.TestCase):
         cut = self.armour[:len(self.armour) // 2] + "\n" + labcrypto.END
         r = intake.evaluate(self.issue("2026-11-02T10:00:00Z", issue_body("W01", "Q01", cut)), self.control, Keys.public)
         self.assertIn("damaged", r["reason"])
+        r = intake.evaluate(self.issue("2026-11-02T10:00:00Z", issue_body("@team <b>W01</b>", "Q01", self.armour)), self.control, Keys.public)
+        self.assertEqual(r["session"], "teambW01b")
+        self.assertNotIn("@", intake.comment_text(r, "UTC"))
         r = intake.evaluate(self.issue("2026-11-02T10:00:00Z", issue_body("W01", "Q09", self.armour)), self.control, Keys.public)
         self.assertIn("not part of session", r["reason"])
         r = intake.evaluate(self.issue("2026-11-02T10:00:00Z", issue_body("W01", "Q01", self.armour, "0" * 16)), self.control, Keys.public)
