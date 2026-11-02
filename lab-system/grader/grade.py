@@ -10,6 +10,12 @@ Layout expected:
 Usage:
     python3 grade.py --lab lab --tests tests --out results [--only E01a E02b] [--sandbox docker|none]
 
+Exercises that use a database (TESTS_DIR/<EXERCISE>/setup.sql) run against a throw-away MySQL 8.4
+container on an internal Docker network without internet access; the student's program shares
+only that container's network (so jdbc:mysql://localhost:3306/... works, user root, password
+"password") and the database is rebuilt from setup.sql before every test case. Give the MySQL
+Connector/J jar with --jdbc-jar.
+
 --sandbox docker (default) runs every program in a container without network access, with
 limited memory, CPU, processes and time, as an unprivileged user on a read-only system: student
 code never sees the repository, its credentials or the internet. --sandbox none runs on the host
@@ -19,6 +25,7 @@ Writes OUT/<EXERCISE>.json and .md for every exercise, and OUT/summary.json and 
 Only the Python standard library is used.
 """
 import argparse
+import atexit
 import datetime as dt
 import hashlib
 import json
@@ -79,21 +86,26 @@ def reference_cases(tests_dir):
     return [(f"case-{n}", inp, exp) for n, inp, exp in sorted(cases)]
 
 
-def run_sandbox(src, cases, out, main, limit, sandbox, image):
+def run_sandbox(src, cases, out, main, limit, sandbox, image, network="none", jdbc_jar=None):
     total_timeout = 120 + limit * max(1, len(os.listdir(cases)))
+    extra_cp = ""
     if sandbox == "docker":
         os.chmod(out, 0o777)
-        cmd = ["docker", "run", "--rm", "--network", "none",
+        mounts = ["-v", f"{src}:/w/src:ro", "-v", f"{cases}:/w/cases:ro", "-v", f"{out}:/w/out:rw",
+                  "-v", f"{os.path.join(HERE, 'sandbox.sh')}:/w/sandbox.sh:ro"]
+        if jdbc_jar:
+            mounts += ["-v", f"{os.path.abspath(jdbc_jar)}:/w/lib/jdbc.jar:ro"]
+            extra_cp = "/w/lib/jdbc.jar"
+        cmd = ["docker", "run", "--rm", "--network", network,
                "--memory", "768m", "--memory-swap", "768m", "--cpus", "1", "--pids-limit", "256",
                "--security-opt", "no-new-privileges", "--cap-drop", "ALL", "--user", "65534:65534",
                "--read-only", "--tmpfs", "/tmp:rw,exec,size=64m",
-               "-e", "HOME=/tmp", "-e", "JAVA_TOOL_OPTIONS=",
-               "-v", f"{src}:/w/src:ro", "-v", f"{cases}:/w/cases:ro", "-v", f"{out}:/w/out:rw",
-               "-v", f"{os.path.join(HERE, 'sandbox.sh')}:/w/sandbox.sh:ro",
-               image, "bash", "/w/sandbox.sh", "/w/src", "/w/cases", "/w/out", main, str(limit)]
+               "-e", "HOME=/tmp", "-e", "JAVA_TOOL_OPTIONS=", *mounts,
+               image, "bash", "/w/sandbox.sh", "/w/src", "/w/cases", "/w/out", main, str(limit), extra_cp]
     else:
         env = {k: v for k, v in os.environ.items() if k != "JAVA_TOOL_OPTIONS"}
-        cmd = ["bash", os.path.join(HERE, "sandbox.sh"), src, cases, out, main, str(limit)]
+        cmd = ["bash", os.path.join(HERE, "sandbox.sh"), src, cases, out, main, str(limit),
+               os.path.abspath(jdbc_jar) if jdbc_jar else ""]
     try:
         subprocess.run(cmd, timeout=total_timeout, check=False,
                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
@@ -103,7 +115,63 @@ def run_sandbox(src, cases, out, main, limit, sandbox, image):
             f.write("whole run exceeded %d s" % total_timeout)
 
 
-def grade_exercise(name, lab_dir, tests_root, limit=10, sandbox="docker", image=IMAGE):
+class Database:
+    """Throw-away MySQL server for exercises with a setup.sql (see the module documentation)."""
+    IMAGE = "mysql:8.4"
+    NAME = "lab-grader-mysql"
+    NETWORK = "lab-grader-db"
+    SYSTEM = ("mysql", "information_schema", "performance_schema", "sys")
+
+    def __init__(self):
+        self.started = False
+
+    def _docker(self, *args, stdin=None, check=True):
+        return subprocess.run(["docker", *args], input=stdin, capture_output=True, text=True, check=check, timeout=300)
+
+    def start(self):
+        if self.started:
+            return
+        self._docker("rm", "-f", self.NAME, check=False)
+        self._docker("network", "rm", self.NETWORK, check=False)
+        self._docker("network", "create", "--internal", self.NETWORK)
+        self._docker("run", "-d", "--name", self.NAME, "--network", self.NETWORK, "-e", "MYSQL_ROOT_PASSWORD=password",
+                     "--memory", "1g", self.IMAGE)
+        for _ in range(120):
+            r = self._docker("exec", self.NAME, "mysqladmin", "ping", "-uroot", "-ppassword", "--silent", check=False)
+            if r.returncode == 0:
+                q = self._docker("exec", self.NAME, "mysql", "-uroot", "-ppassword", "-e", "SELECT 1", check=False)
+                if q.returncode == 0:
+                    break
+            import time
+            time.sleep(1)
+        else:
+            raise RuntimeError("MySQL did not start")
+        self.started = True
+
+    def reset(self, setup_sql):
+        """Drops every database the tests created and runs setup.sql again."""
+        self.start()
+        r = self._docker("exec", self.NAME, "mysql", "-uroot", "-ppassword", "-N", "-e",
+                         "SELECT schema_name FROM information_schema.schemata")
+        drops = "".join("DROP DATABASE `%s`;\n" % n.strip() for n in r.stdout.splitlines()
+                        if n.strip() and n.strip() not in self.SYSTEM)
+        self._docker("exec", "-i", self.NAME, "mysql", "-uroot", "-ppassword", stdin=drops + read(setup_sql))
+
+    def network(self):
+        return "container:" + self.NAME
+
+    def stop(self):
+        if self.started:
+            self._docker("rm", "-f", self.NAME, check=False)
+            self._docker("network", "rm", self.NETWORK, check=False)
+            self.started = False
+
+
+DATABASE = Database()
+atexit.register(DATABASE.stop)
+
+
+def grade_exercise(name, lab_dir, tests_root, limit=10, sandbox="docker", image=IMAGE, jdbc_jar=None):
     ex_dir = os.path.join(lab_dir, name)
     java_files = sorted(os.path.join(ex_dir, f) for f in os.listdir(ex_dir) if f.endswith(".java"))
     result = {"exercise": name, "graded_at": dt.datetime.now(IST).isoformat(timespec="seconds"),
@@ -141,7 +209,26 @@ def grade_exercise(name, lab_dir, tests_root, limit=10, sandbox="docker", image=
             for f in os.listdir(d):
                 os.chmod(os.path.join(d, f), 0o644)
             os.chmod(d, 0o755)
-        run_sandbox(src, cases, out, main, limit, sandbox, image)
+        setup_sql = os.path.join(tests_dir, "setup.sql") if tests_dir else None
+        if setup_sql and os.path.exists(setup_sql) and sandbox == "docker":
+            # one container per case, each with a freshly built database
+            for case in sorted(os.listdir(cases)):
+                one = os.path.join(work, "one")
+                shutil.rmtree(one, ignore_errors=True)
+                os.makedirs(one)
+                shutil.copy(os.path.join(cases, case), one)
+                os.chmod(one, 0o755)
+                os.chmod(os.path.join(one, case), 0o644)
+                part = os.path.join(work, "part")
+                shutil.rmtree(part, ignore_errors=True)
+                os.makedirs(part)
+                DATABASE.reset(setup_sql)
+                run_sandbox(src, one, part, main, limit, sandbox, image, DATABASE.network(), jdbc_jar)
+                for f in os.listdir(part):
+                    if os.path.isfile(os.path.join(part, f)):
+                        shutil.copy(os.path.join(part, f), os.path.join(out, f))
+        else:
+            run_sandbox(src, cases, out, main, limit, sandbox, image, "none", jdbc_jar)
 
         result["compiled"] = read(os.path.join(out, "compile.rc")).strip() == "0"
         compile_out = read(os.path.join(out, "compile.txt"), 6000)
@@ -230,11 +317,12 @@ def main():
     ap.add_argument("--sandbox", choices=["docker", "none"], default="docker")
     ap.add_argument("--image", default=IMAGE)
     ap.add_argument("--timeout", type=int, default=10, help="seconds per test case")
+    ap.add_argument("--jdbc-jar", default=None, help="MySQL Connector/J jar for exercises with a setup.sql")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     summary = []
     for name in exercises(a.lab, a.only):
-        r = grade_exercise(name, a.lab, a.tests, a.timeout, a.sandbox, a.image)
+        r = grade_exercise(name, a.lab, a.tests, a.timeout, a.sandbox, a.image, a.jdbc_jar)
         with open(os.path.join(a.out, name + ".json"), "w", encoding="utf-8") as f:
             json.dump(r, f, indent=1, ensure_ascii=False)
         with open(os.path.join(a.out, name + ".md"), "w", encoding="utf-8") as f:

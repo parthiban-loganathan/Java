@@ -6,7 +6,10 @@
 
 Command line (teacher):
     python3 tools/lab/labcrypto.py keygen DIR          new key pair: DIR/teacher-public-key.pem, DIR/lab-private-key.pem
+                                                       (asks for a passphrase that protects the private key)
     python3 tools/lab/labcrypto.py decrypt KEY.pem FILE  print the decrypted JSON of a package (FILE may be a whole issue text)
+The private key may be protected by a passphrase (standard PKCS#8 "ENCRYPTED PRIVATE KEY",
+PBKDF2-SHA256 + AES-256-CBC, as made by the Teacher tools page or OpenSSL).
 Needs the "cryptography" package (Apache-2.0/BSD): pip install cryptography
 """
 import base64
@@ -105,8 +108,16 @@ def armour(binary):
     return BEGIN + "\n" + "\n".join(b64[i:i + 76] for i in range(0, len(b64), 76)) + "\n" + END
 
 
-def load_private_key(pem):
-    return serialization.load_pem_private_key(pem.encode() if isinstance(pem, str) else pem, password=None)
+def load_private_key(pem, passphrase=None):
+    """Private key from PEM; a passphrase is needed for an ENCRYPTED PRIVATE KEY."""
+    data = pem.encode() if isinstance(pem, str) else pem
+    password = passphrase.encode("utf-8") if isinstance(passphrase, str) and passphrase else None
+    if b"ENCRYPTED PRIVATE KEY" in data and password is None:
+        raise PackageError("the private key is protected by a passphrase: set LAB_KEY_PASSPHRASE")
+    try:
+        return serialization.load_pem_private_key(data, password=password)
+    except (ValueError, TypeError) as e:
+        raise PackageError("the private key cannot be opened (wrong passphrase or damaged file): %s" % e)
 
 
 def decrypt(binary, private_key):
@@ -137,11 +148,13 @@ def encrypt(obj, public_pem):
     return MAGIC + bytes.fromhex(key_id_of_public(pub)) + len(wrapped).to_bytes(2, "big") + wrapped + iv + ct
 
 
-def keygen(directory):
+def keygen(directory, passphrase=None):
     os.makedirs(directory, exist_ok=True)
     key = rsa.generate_private_key(public_exponent=65537, key_size=4096)
     pub = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
-    priv = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    protection = (serialization.BestAvailableEncryption(passphrase.encode("utf-8")) if passphrase
+                  else serialization.NoEncryption())
+    priv = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, protection)
     with open(os.path.join(directory, "teacher-public-key.pem"), "wb") as f:
         f.write(pub)
     path = os.path.join(directory, "lab-private-key.pem")
@@ -154,10 +167,19 @@ def keygen(directory):
 
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "keygen":
-        keygen(sys.argv[2])
+        import getpass
+        first = getpass.getpass("Passphrase for the private key (12+ characters): ")
+        if len(first) < 12 or getpass.getpass("Repeat: ") != first:
+            sys.exit("Passphrases differ or are shorter than 12 characters.")
+        keygen(sys.argv[2], first)
     elif len(sys.argv) == 4 and sys.argv[1] == "decrypt":
         with open(sys.argv[2]) as f:
-            key = load_private_key(f.read())
+            pem = f.read()
+        passphrase = os.environ.get("LAB_KEY_PASSPHRASE")
+        if "ENCRYPTED PRIVATE KEY" in pem and not passphrase:
+            import getpass
+            passphrase = getpass.getpass("Passphrase of the private key: ")
+        key = load_private_key(pem, passphrase)
         with open(sys.argv[3]) as f:
             print(json.dumps(decrypt(unarmour(f.read()), key), indent=1, ensure_ascii=False))
     else:

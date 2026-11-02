@@ -12,7 +12,7 @@ For every "Lab submission" issue of the public lab repository:
      against TESTS/<question>/ (your hidden cases), and summarises the activity log,
   6. writes OUT/<session>/marks.csv, marks-wide.csv, similarity.csv and README.md.
 
-    LAB_PRIVATE_KEY="$(cat lab-private-key.pem)" python3 collect_lab.py --repo OWNER/REPO \
+    LAB_PRIVATE_KEY="$(cat lab-private-key.pem)" LAB_KEY_PASSPHRASE=... python3 collect_lab.py --repo OWNER/REPO \
         --tests tests --roster roster.csv --out results [--session W05] [--sandbox docker]
 Needs: Python 3.10+, the cryptography package, Docker (for --sandbox docker).
 """
@@ -146,7 +146,7 @@ def write_csv(path, header, rows):
 
 
 # ---------------------------------------------------------------- main work
-def collect(api, key, out, tests_root, roster, session_filter, sandbox, timeout):
+def collect(api, key, out, tests_root, roster, session_filter, sandbox, timeout, jdbc_jar=None):
     import grade  # lab-system/grader/grade.py
     control = api.control()
     attempts = []
@@ -237,7 +237,7 @@ def collect(api, key, out, tests_root, roster, session_filter, sandbox, timeout)
                 for name, text in a["files"].items():
                     with open(os.path.join(work, question, name), "w", encoding="utf-8") as f:
                         f.write(text)
-                result = grade.grade_exercise(question, work, tests_root, timeout, sandbox)
+                result = grade.grade_exercise(question, work, tests_root, timeout, sandbox, jdbc_jar=jdbc_jar)
             finally:
                 shutil.rmtree(work, ignore_errors=True)
             result["cache_key"] = cache_key
@@ -321,13 +321,19 @@ def main():
     ap.add_argument("--session", default="")
     ap.add_argument("--sandbox", choices=["docker", "none"], default="docker")
     ap.add_argument("--timeout", type=int, default=10)
+    ap.add_argument("--jdbc-jar", default=None, help="MySQL Connector/J jar (questions with a setup.sql)")
     a = ap.parse_args()
     pem = os.environ.get("LAB_PRIVATE_KEY", "")
     if "PRIVATE KEY" not in pem:
         sys.exit("Set LAB_PRIVATE_KEY to the private key (the whole lab-private-key.pem file).")
-    key = labcrypto.load_private_key(pem)
+    try:
+        key = labcrypto.load_private_key(pem, os.environ.get("LAB_KEY_PASSPHRASE"))
+    except labcrypto.PackageError as e:
+        sys.exit(str(e))
+    os.environ.pop("LAB_KEY_PASSPHRASE", None)
     api = Api(a.repo, os.environ.get("GITHUB_TOKEN"))
-    attempts, latest = collect(api, key, a.out, a.tests, load_roster(a.roster), a.session.strip(), a.sandbox, a.timeout)
+    attempts, latest = collect(api, key, a.out, a.tests, load_roster(a.roster), a.session.strip(), a.sandbox, a.timeout,
+                               a.jdbc_jar)
     print("%d submissions read, %d marked" % (len(attempts), len(latest)))
 
 

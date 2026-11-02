@@ -1,10 +1,12 @@
 // Web Worker that runs ONE compiled student program (see java-runner.js). The page terminates
 // this worker when the time limit is reached. Keyboard input: Scanner(System.in) reads the
-// global labStdin (java/teavm-patches/.../BrowserStdin.java).
+// global labStdin (java/teavm-patches/.../BrowserStdin.java); JDBC programs use an embedded
+// database created from the global labSql (lab/sql, java.sql classes in teavm-patches).
 import { load } from '../javac/compiler.wasm-runtime.js';
 
 onmessage = async ({ data }) => {
   globalThis.labStdin = data.stdin || '';
+  globalThis.labSql = data.sql || '';
   let out = '', err = '';
   let produced = 0;                    // characters written so far (for the idle check)
   const flush = () => {

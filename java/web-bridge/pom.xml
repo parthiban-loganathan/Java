@@ -26,6 +26,12 @@
     </dependency>
     <dependency>
       <groupId>lab.civiltech</groupId>
+      <artifactId>teavm-checks</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>lab.civiltech</groupId>
       <artifactId>civiltech-core</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -64,6 +70,19 @@
                 <argument>course</argument>
                 <argument>--gen</argument>
                 <argument>${generated.course}</argument>
+              </arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>runtime-checks</id>
+            <!-- after compilation, before TeaVM: run-time checks of the Java language (java/teavm-checks) -->
+            <phase>process-classes</phase>
+            <goals><goal>java</goal></goals>
+            <configuration>
+              <mainClass>lab.teavm.ChecksTransformer</mainClass>
+              <classpathScope>compile</classpathScope>
+              <arguments>
+                <argument>${project.build.outputDirectory}/course</argument>
               </arguments>
             </configuration>
           </execution>

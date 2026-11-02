@@ -1,6 +1,6 @@
 // Compiles and runs every course program with the IN-BROWSER compiler (teavm-javac) inside
 // Chromium, exactly as the Lab page does, and compares the output with the JDK reference.
-//   node tools/verification/browser_javac_check.mjs SITE_URL COURSE_DIR [REPORT.md]
+//   [EXTRA_PROGRAMS=dir1:dir2] node tools/verification/browser_javac_check.mjs SITE_URL COURSE_DIR [REPORT.md]
 // SITE_URL must serve the built site including assets/javac/. Needs the playwright package.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,25 +10,34 @@ const [siteUrl, courseDir, reportPath] = process.argv.slice(2);
 const norm = s => s.replace(/\r\n/g, '\n').split('\n').map(l => l.trimEnd()).join('\n').trim();
 
 const programs = [];
+function addProgram(dir, id) {
+  const metaFile = path.join(dir, 'meta.properties');
+  const meta = fs.existsSync(metaFile) ? fs.readFileSync(metaFile, 'utf8') : '';
+  const files = {};
+  for (const f of fs.readdirSync(dir)) if (f.endsWith('.java')) files[f] = fs.readFileSync(path.join(dir, f), 'utf8');
+  const cases = [];
+  for (let c = 1; ; c++) {
+    const suf = c === 1 ? '' : `-${c}`;
+    const exp = path.join(dir, `expected${suf}.txt`);
+    if (!fs.existsSync(exp)) break;
+    const inp = path.join(dir, `input${suf}.txt`);
+    cases.push({ input: fs.existsSync(inp) ? fs.readFileSync(inp, 'utf8') : '', expected: fs.readFileSync(exp, 'utf8') });
+  }
+  const sqlFile = path.join(dir, 'setup.sql');
+  programs.push({ id, files, cases, sql: fs.existsSync(sqlFile) ? fs.readFileSync(sqlFile, 'utf8') : '',
+    differs: /browserDiffers=true/.test(meta) });                     // documented in meta.properties
+}
 for (const group of ['lessons', 'experiments']) {
   for (const folder of fs.readdirSync(path.join(courseDir, group)).sort()) {
     const dir = path.join(courseDir, group, folder);
-    const metaFile = path.join(dir, 'meta.properties');
-    if (!fs.existsSync(metaFile)) continue;
-    const meta = fs.readFileSync(metaFile, 'utf8');
-    if (meta.includes('requires=mysql')) continue;
-    const files = {};
-    for (const f of fs.readdirSync(dir)) if (f.endsWith('.java')) files[f] = fs.readFileSync(path.join(dir, f), 'utf8');
-    const cases = [];
-    for (let c = 1; ; c++) {
-      const suf = c === 1 ? '' : `-${c}`;
-      const exp = path.join(dir, `expected${suf}.txt`);
-      if (!fs.existsSync(exp)) break;
-      const inp = path.join(dir, `input${suf}.txt`);
-      cases.push({ input: fs.existsSync(inp) ? fs.readFileSync(inp, 'utf8') : '', expected: fs.readFileSync(exp, 'utf8') });
-    }
-    programs.push({ id: folder.split('-')[0], files, cases,
-      differs: /browserDiffers=true/.test(meta) || /browser=false/.test(meta) || /browserJavac=false/.test(meta) });   // documented in meta.properties
+    if (fs.existsSync(path.join(dir, 'meta.properties'))) addProgram(dir, folder.split('-')[0]);
+  }
+}
+// further programs (e.g. the SQL parity programs, whose expected output CI makes with real MySQL)
+for (const extra of (process.env.EXTRA_PROGRAMS || '').split(':').filter(Boolean)) {
+  for (const folder of fs.readdirSync(extra).sort()) {
+    const dir = path.join(extra, folder);
+    if (fs.statSync(dir).isDirectory()) addProgram(dir, folder);
   }
 }
 
@@ -46,14 +55,14 @@ console.log(`compiler loaded in ${Date.now() - t0} ms`);
 const rows = [];
 let pass = 0, fail = 0, known = 0;
 for (const p of programs) {
-  const r = await page.evaluate(async ({ files, cases }) => {
+  const r = await page.evaluate(async ({ files, cases, sql }) => {
     const c0 = performance.now();
     const comp = await window.runner.compile(files);
     const compileMs = Math.round(performance.now() - c0);
     if (!comp.ok) return { compiled: false, compileMs, diagnostics: comp.diagnostics.map(d => `${d.fileName}:${d.lineNumber} ${d.message}`).join(' | ') };
     const results = [];
     for (const c of cases) {
-      const out = await window.runner.run(comp.wasm, c.input, { timeLimitMs: 10000 });
+      const out = await window.runner.run(comp.wasm, c.input, { timeLimitMs: 10000, sql });
       results.push({ ...out, expected: c.expected });
     }
     return { compiled: true, compileMs, results };

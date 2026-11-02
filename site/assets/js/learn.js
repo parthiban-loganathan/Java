@@ -96,6 +96,8 @@ async function run() {
   $('run-status').innerHTML = '<span class="spinner"></span> loading Java runtime...';
   try {
     const java = await loadJava();
+    // programs that use a database: the page's embedded database is created from setup.sql at every run
+    globalThis.labSql = p.setup ? await fetchText(`course/${p.path}/setup.sql`) : '';
     $('run-status').innerHTML = '<span class="spinner"></span> running...';
     const t0 = performance.now();
     const [out, finished] = await new Promise(res => java.runProgram(p.id, $('stdin').value, (o, f) => res([o, f])));

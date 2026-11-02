@@ -158,6 +158,32 @@ class CryptoTest(unittest.TestCase):
         self.assertEqual(node("decrypt", Keys.private_path, os.path.join(d, "pkg.txt"))["data"], p)
 
     @unittest.skipUnless(shutil.which("node"), "node not installed")
+    def test_passphrase_protected_keys(self):
+        d = tempfile.mkdtemp()
+        js = node("keygen", "a good long passphrase", d)
+        pem = open(os.path.join(d, "private.pem")).read()
+        self.assertIn("BEGIN ENCRYPTED PRIVATE KEY", pem)
+        with self.assertRaises(labcrypto.PackageError):
+            labcrypto.load_private_key(pem)                       # no passphrase
+        with self.assertRaises(labcrypto.PackageError):
+            labcrypto.load_private_key(pem, "wrong passphrase")
+        key = labcrypto.load_private_key(pem, "a good long passphrase")
+        public = open(os.path.join(d, "public.pem")).read()
+        self.assertEqual(labcrypto.key_id(public), js["keyId"])
+        self.assertEqual(labcrypto.decrypt(labcrypto.encrypt(payload(), public), key)["regno"], "24BCL0001")
+        # a key made by Python with a passphrase opens in the browser code
+        p = tempfile.mkdtemp()
+        labcrypto.keygen(p, "python passphrase 789")
+        with open(os.path.join(p, "lab-private-key.pem")) as f:
+            self.assertIn("ENCRYPTED PRIVATE KEY", f.read())
+        with open(os.path.join(p, "pkg.txt"), "w") as f:
+            f.write(labcrypto.armour(labcrypto.encrypt(payload(), labcrypto_read(p))))
+        env = dict(os.environ, PASSPHRASE="python passphrase 789")
+        r = subprocess.run(["node", os.path.join(HERE, "interop.mjs"), "decrypt", os.path.join(p, "lab-private-key.pem"),
+                            os.path.join(p, "pkg.txt")], capture_output=True, text=True, check=True, env=env)
+        self.assertEqual(json.loads(r.stdout)["data"]["regno"], "24BCL0001")
+
+    @unittest.skipUnless(shutil.which("node"), "node not installed")
     def test_replay_multiline_and_unicode(self):
         events = [["i", 1, 0, 0, "ab"], ["i", 2, 0, 1, "X\nY\nZ"], ["r", 3, 1, 0, 2, 1], ["i", 4, 0, 0, "é€😀"], ["r", 5, 0, 2, 0, 5]]
         code = "é€X\nb"          # the emoji is 2 UTF-16 units, as in the browser

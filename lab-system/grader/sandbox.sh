@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Compiles and runs one student program. Executed INSIDE an isolated container (no network,
 # limited memory/CPU/processes, read-only system, unprivileged user) by grade.py.
-#   sandbox.sh SRC_DIR CASES_DIR OUT_DIR MAIN_CLASS TIMEOUT_SECONDS
+#   sandbox.sh SRC_DIR CASES_DIR OUT_DIR MAIN_CLASS TIMEOUT_SECONDS [EXTRA_CLASSPATH]
 # Writes OUT_DIR/compile.txt, compile.rc and, for every CASES_DIR/<name>.in,
 # <name>.out (stdout, kept up to 64 KB), <name>.err (stderr, up to 16 KB) and <name>.rc (exit code;
 # 124 or 137 = stopped at the time limit, 153 = output larger than 1 MB).
 set -u
-SRC="$1"; CASES="$2"; OUT="$3"; MAIN="$4"; LIMIT="$5"
+SRC="$1"; CASES="$2"; OUT="$3"; MAIN="$4"; LIMIT="$5"; EXTRA="${6:-}"
+CP="$OUT/classes${EXTRA:+:$EXTRA}"
 mkdir -p "$OUT/classes"
-javac -encoding UTF-8 -Xlint:none -d "$OUT/classes" "$SRC"/*.java > "$OUT/compile.txt" 2>&1
+javac -encoding UTF-8 -Xlint:none -cp "$CP" -d "$OUT/classes" "$SRC"/*.java > "$OUT/compile.txt" 2>&1
 echo $? > "$OUT/compile.rc"
 if [ "$(cat "$OUT/compile.rc")" != "0" ]; then
   exit 0
@@ -21,7 +22,7 @@ for f in "$CASES"/*.in; do
     cd "$work" || exit 1
     ulimit -f 1024            # no file (output included) may exceed 1 MB
     timeout -s KILL "$LIMIT" java -Xss8m -Xmx256m -Dfile.encoding=UTF-8 -Duser.language=en -Duser.country=US \
-      -cp "$OUT/classes" "$MAIN" < "$f" > "$OUT/$n.out" 2> "$OUT/$n.err"
+      -cp "$CP" "$MAIN" < "$f" > "$OUT/$n.out" 2> "$OUT/$n.err"
     echo $? > "$OUT/$n.rc"
   )
   truncate -s '<65536' "$OUT/$n.out" 2>/dev/null

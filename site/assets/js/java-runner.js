@@ -56,10 +56,11 @@ export async function compile(files) {
 }
 
 /**
- * Runs a compiled program with the given keyboard input. Result: {stdout, stderr, exception,
- * timedOut, outputLimited, ms}.
+ * Runs a compiled program with the given keyboard input. `sql`: set-up script of the embedded
+ * database (CREATE DATABASE, CREATE TABLE ...) for programs that use JDBC. Result: {stdout,
+ * stderr, exception, timedOut, outputLimited, ms}.
  */
-export function run(wasm, stdin, { timeLimitMs = 5000, maxOutput = 65536 } = {}) {
+export function run(wasm, stdin, { timeLimitMs = 5000, maxOutput = 65536, sql = '' } = {}) {
   return new Promise(resolve => {
     const t0 = performance.now();
     const worker = new Worker(new URL('./java-exec-worker.js', import.meta.url), { type: 'module' });
@@ -83,7 +84,7 @@ export function run(wasm, stdin, { timeLimitMs = 5000, maxOutput = 65536 } = {})
       }
     };
     worker.onerror = e => finish({ exception: e.message || 'the program could not be started' });
-    worker.postMessage({ wasm, stdin });          // copied, so the same program can run again
+    worker.postMessage({ wasm, stdin, sql });     // copied, so the same program can run again
   });
 }
 

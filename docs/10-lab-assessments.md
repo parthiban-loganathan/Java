@@ -8,7 +8,25 @@ Everything runs on free, open-source pieces and free GitHub services: no server 
 | **Lab session control** | You open an assessment with its questions and close it, each with one button | Actions tab of this repository |
 | **Lab submission check** | Every submission becomes a GitHub issue; this robot accepts it if GitHub's time of the issue lies inside an open window, keeps an unchangeable copy, then closes and locks the issue | Actions tab, runs by itself |
 | **Private gradebook** | Your private repository: decrypts every submission, re-runs it with your hidden test cases in isolated containers, summarises the typing log, compares programs and writes mark sheets | your repository `java-lab-gradebook` |
-| **Teacher tools page** | Creates your key pair; opens any submission and replays how it was typed | `teacher.html` on the website |
+| **Teacher tools page** | Creates your key pair (private key protected by your passphrase); marks a whole session in your browser (marks.csv + ZIP of all work); opens any submission and replays how it was typed | `teacher.html` on the website |
+
+### Where the work is kept, and how only you can read it
+
+| What | Where | Who can read it |
+|------|-------|-----------------|
+| Every submission (code, name, register number, typing log) | a GitHub issue in this public repository, as an **encrypted package**; the robot keeps a copy no student can edit | only the holder of the private key **and** its passphrase |
+| Your private key | the file `lab-private-key.pem` you download once; it is itself encrypted with your **passphrase** (standard PKCS#8: PBKDF2-SHA256 with 600 000 iterations, AES-256) | you; the file alone is useless without the passphrase |
+| Decrypted work, marks | either your private gradebook repository (`results/`), or the `marks.csv` and ZIP you download from the Teacher tools page | you |
+
+There is **no password stored anywhere** by this system: the passphrase exists only in your head (and, if you use the
+gradebook, as the GitHub secret `LAB_KEY_PASSPHRASE` of your private repository, which GitHub never shows again).
+Two ways to turn the encrypted submissions into marks, use either or both:
+
+* **In the browser** (nothing to set up): Teacher tools, part 2: choose `lab-private-key.pem`, type the passphrase,
+  **Unlock**; part 3: session `W05`, **Fetch, decrypt and mark**. You get `marks.csv` and a ZIP with every attempt
+  (`<question>/<regno>/<issue>/Main.java` and `submission.json`). Optional: choose your hidden tests folder.
+* **In the private gradebook** (GitHub Actions, real JDK 21 in isolated containers, results kept in the repository):
+  Part A4 and Part C.
 
 **Privacy.** This repository is public, so anyone can read its source code, the questions and the sample cases.
 Students' code, names and register numbers are never readable in it: each submission is encrypted in the
@@ -37,9 +55,12 @@ If Pages is not enabled yet: **Settings, Pages, Build and deployment, Source: Gi
    the permissions they need); leave *Allow GitHub Actions to create and approve pull requests* unticked.
 
 ### A3. Your key pair
-1. Open `https://parthiban-loganathan.github.io/Java/teacher.html`, **Create key pair** (a few seconds).
-2. **Download lab-private-key.pem**. Keep it safe (password manager or encrypted drive) and never put it in
-   the public repository. Without it no submission can be read; nobody can recreate it.
+1. Open `https://parthiban-loganathan.github.io/Java/teacher.html`. Type a **passphrase** of 12 or more characters
+   twice (four random words are good), **Create key pair** (a few seconds).
+2. **Download lab-private-key.pem**. Keep copies in two safe places (for example a USB stick and your e-mail) and
+   write the passphrase down separately; never put either in the public repository. Without both, no submission
+   can be read and nobody can recreate them. (The file is also readable with OpenSSL:
+   `openssl pkey -in lab-private-key.pem` asks for the passphrase.)
 3. **Create the file on GitHub**: GitHub opens a new file `lab/teacher-public-key.pem` with the public key filled in;
    **Commit changes**, **Commit changes**. (Or copy the text into that file by hand.)
 
@@ -54,6 +75,7 @@ The key id (16 characters) is shown on the page; every intake reply and submissi
    unzipped folder, **Commit changes**.
 5. **Settings, Secrets and variables, Actions, New repository secret**: name `LAB_PRIVATE_KEY`, value: open
    `lab-private-key.pem` in a text editor and paste all of it, including the BEGIN and END lines. **Add secret**.
+   Again **New repository secret**: name `LAB_KEY_PASSPHRASE`, value: your passphrase. **Add secret**.
 6. Edit `roster.csv` (pencil icon): one line per student, `regno,name,github`, for example
    `24BCL0123,Anitha R,anitha-r`. The GitHub username is optional; when it is given, a submission made from another
    account is flagged.
@@ -117,7 +139,9 @@ Watch the issues tab (filter `label:lab-submission`) if you like: each reply say
 **End of the lab** (10 seconds): **Run workflow**, action `close`, session `W05` (empty session = close everything
 open). The time you pressed the button is recorded; an issue GitHub created after it is rejected.
 
-**After the lab:** gradebook, **Collect and mark lab submissions**, session `W05`. Then read `results/W05/`:
+**After the lab**, either in the browser (Teacher tools: unlock your key, part 3, session `W05`, **Fetch, decrypt and
+mark**, download `marks.csv` and the ZIP), or in the gradebook: **Collect and mark lab submissions**, session `W05`.
+Then read `results/W05/`:
 
 | File | Content |
 |------|---------|
@@ -204,15 +228,18 @@ characters, 10-30 active minutes, several runs and checks.
   the code), and similar programs are listed; use a short viva for flagged cases.
 * **Time.** Acceptance uses GitHub's clock (issue creation time) and the time you pressed the button, never the
   student's clock. The page's banner is refreshed every minute and is only a guide.
-* **What runs in the browser.** Console programs with `Scanner`, `printf`/`String.format` (`%d %f %s %c %b %x %n`,
-  width, flags), strings, arrays, collections, classes, interfaces, exceptions, generics and threads compile and run.
-  Not available in the browser: files (`FileWriter`, `FileReader`: Experiments 8-10), object serialization
-  (Experiments 11-12), JDBC (Experiment 16), `%e`. Those are marked on the real JDK by the gradebook as usual, so
-  they can still be submitted; students then test them in Codespaces or on a lab PC.
-  Two small differences remain: an array index out of range stops the program instead of being catchable as
-  `ArrayIndexOutOfBoundsException` (Lesson 13), and some exception messages are worded differently (Experiment 6a).
-  The gradebook always marks on the real JDK 21. The compiler (about 5 MB) loads once per visit; compiling takes
-  1-2 seconds.
+* **What runs in the browser: every lesson and experiment of the course**, checked automatically against the JDK
+  on every change. Console input (`Scanner`, `BufferedReader` on `System.in`), `printf`/`String.format`, strings,
+  arrays, collections, classes, interfaces, exceptions with the JDK's messages (`Index 3 out of bounds for length 3`,
+  `/ by zero`, `For input string: "x"`), generics, lambdas, threads, files (`FileWriter`, `FileReader`, `PrintWriter`,
+  `Scanner(File)`; the files exist while the program runs), object serialization (`ObjectOutputStream`,
+  `ObjectInputStream`) and JDBC (`DriverManager.getConnection("jdbc:mysql://...")` connects to a database inside the
+  page that speaks MySQL, built from the exercise's `setup.sql` at every run).
+  Remaining differences, none of which occurs in the course programs: the browser database handles one table per
+  query (no `JOIN`; the gradebook runs such programs on real MySQL); an object read back by `ObjectInputStream` is the
+  same object that was written (transient fields keep their values); `%e` in `printf` is not supported.
+  The gradebook always marks on the real JDK 21, and database programs against a real MySQL 8.4. The compiler
+  (about 5 MB) loads once per visit; compiling takes 1-2 seconds.
 * **Accounts.** Each student needs a GitHub account; the GitHub username is visible on the (encrypted) issue.
 * **Free limits.** Public repository: Actions minutes are free. Private gradebook: GitHub Free includes
   2,000 minutes a month; one collection of 60 students x 2 questions takes about 10-20 minutes.
@@ -229,5 +256,7 @@ characters, 10-30 active minutes, several runs and checks.
 | No reply on a submission issue | Actions, **Lab submission check**: open the run; the issue title must start with `[Lab]` (the page does this). |
 | Reply: *made with an old teacher key* | You replaced the key pair; students reload the Lab page and submit again. Keep using the new private key. |
 | Reply: *package is damaged or incomplete* | The student copied only part of it: Copy package again and create a new issue. |
-| Gradebook run fails at *Collect, decrypt, mark* with *Set LAB_PRIVATE_KEY* | Step A4.5. |
+| Gradebook run fails at *Collect, decrypt, mark* with *Set LAB_PRIVATE_KEY* or *protected by a passphrase* | Step A4.5 (both secrets). |
+| Teacher tools: *wrong passphrase for this private key* | Type the passphrase exactly; it is case-sensitive. |
+| Teacher tools: *GitHub limits requests without a token* | Wait an hour, or create a token (GitHub, Settings, Developer settings, Fine-grained tokens, public repositories, read-only) and paste it in part 3; it is not stored. |
 | A student lost work | Same browser and register number restore it; work is saved per browser, so use the same PC or submit before moving. |

@@ -58,6 +58,7 @@ public final class Bridge {
             PrintStream oldOut = System.out;
             PrintStream oldErr = System.err;
             BrowserStdin.reset(input);
+            lab.sql.Session.reset();            // a fresh database for every run (set-up: globalThis.labSql)
             System.setOut(out);
             System.setErr(out);
             boolean known = true;

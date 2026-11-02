@@ -181,3 +181,16 @@ export class Recorder {
     this.push([type, this.now(), ...values]);
   }
 }
+
+/** Reasons for the teacher to look closer (same rules as tools/lab/activity.py flags()). */
+export function flags(s, trimmed = false) {
+  const f = [];
+  if (trimmed) f.push('typing log trimmed (very long work)');
+  else if (!s.replayMatches) f.push('code differs from the typing log');
+  if (s.pasteBlocked) f.push(`${s.pasteBlocked} paste attempt(s) blocked`);
+  if (s.bulkInserts) f.push(`${s.bulkInserts} large insertion(s) without typing`);
+  if (s.dropBlocked) f.push(`${s.dropBlocked} drop attempt(s) blocked`);
+  if (!trimmed && s.finalChars > 40 && s.typedChars < 0.8 * s.finalChars) f.push(`typed ${s.typedChars} characters for ${s.finalChars} in the code`);
+  if (s.awayMs > 5 * 60000) f.push(`away from the page ${Math.round(s.awayMs / 60000)} min`);
+  return f;
+}

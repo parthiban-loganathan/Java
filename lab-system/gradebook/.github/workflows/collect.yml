@@ -1,8 +1,8 @@
 name: Collect and mark lab submissions
 
 # Teacher: Actions -> Collect and mark lab submissions -> Run workflow (after closing a session).
-# Reads the Lab submission issues of the public lab repository, decrypts them with the secret
-# LAB_PRIVATE_KEY, marks the last accepted submission of every student with the hidden tests in
+# Reads the Lab submission issues of the public lab repository, decrypts them with the secrets
+# LAB_PRIVATE_KEY and LAB_KEY_PASSPHRASE, marks the last accepted submission of every student with the hidden tests in
 # tests/ (each program in an isolated container without network), and saves everything in results/.
 on:
   workflow_dispatch:
@@ -42,16 +42,22 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -q cryptography==46.0.3
-      - name: Java 21 for marking
-        run: docker pull -q eclipse-temurin:21-jdk
+      - name: Java 21 and MySQL 8.4 for marking, MySQL Connector/J (checksum verified)
+        run: |
+          docker pull -q eclipse-temurin:21-jdk
+          docker pull -q mysql:8.4
+          curl -fsSL --retry 5 -o mysql-connector-j.jar \
+            https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/9.1.0/mysql-connector-j-9.1.0.jar
+          echo "8776e2ebc46072c9a47ea59d98298c4273bd9f16a7b26b5dfa4744535aa26c62  mysql-connector-j.jar" | sha256sum -c -
       - name: Collect, decrypt, mark
         env:
           LAB_PRIVATE_KEY: ${{ secrets.LAB_PRIVATE_KEY }}
+          LAB_KEY_PASSPHRASE: ${{ secrets.LAB_KEY_PASSPHRASE }}
           GITHUB_TOKEN: ${{ github.token }}
           SESSION: ${{ github.event.inputs.session }}
         run: |
           python3 .lab-public/tools/lab/collect_lab.py --repo "$LAB_REPOSITORY" --session "$SESSION" \
-            --tests tests --roster roster.csv --out results
+            --tests tests --roster roster.csv --out results --jdbc-jar mysql-connector-j.jar
       - name: Save results
         run: |
           git config user.name "gradebook"

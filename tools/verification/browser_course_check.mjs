@@ -26,6 +26,8 @@ for (const group of ['lessons', 'experiments']) {
       if (!fs.existsSync(exp)) break;
       const inpFile = path.join(dir, `input${suf}.txt`);
       const input = fs.existsSync(inpFile) ? fs.readFileSync(inpFile, 'utf8') : '';
+      const sqlFile = path.join(dir, 'setup.sql');
+      globalThis.labSql = fs.existsSync(sqlFile) ? fs.readFileSync(sqlFile, 'utf8') : '';   // as learn.js does
       const [out, done] = await run(id, input);
       const ok = norm(out) === norm(fs.readFileSync(exp, 'utf8'));
       if (ok && done) { pass++; console.log(`PASS ${id} case ${c}`); }

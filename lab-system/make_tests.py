@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Copies the JDK-verified test cases of the course (course/*/*/input*.txt, expected*.txt) into a
 tests/ folder for the grader: tests/<ID>/input-N.txt and expected-N.txt.
-Programs that need a database (requires=mysql) are skipped.
+Programs that use a database also get their setup.sql (tests/<ID>/setup.sql): the grader then
+runs them against a throw-away MySQL server (grade.py --jdbc-jar).
 
     python3 lab-system/make_tests.py course OUT_DIR
 """
@@ -19,11 +20,11 @@ def main(course, out):
             meta = os.path.join(d, "meta.properties")
             if not os.path.exists(meta):
                 continue
-            if "requires=mysql" in open(meta, encoding="utf-8").read():
-                continue
             ex = folder.split("-")[0]
             target = os.path.join(out, ex)
             os.makedirs(target, exist_ok=True)
+            if os.path.exists(os.path.join(d, "setup.sql")):
+                shutil.copy(os.path.join(d, "setup.sql"), os.path.join(target, "setup.sql"))
             for name in os.listdir(d):
                 m = re.fullmatch(r"(input|expected)(?:-(\d+))?\.txt", name)
                 if m:

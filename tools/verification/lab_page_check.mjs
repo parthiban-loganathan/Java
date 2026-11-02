@@ -19,7 +19,8 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../.
 const failures = [];
 const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) failures.push(what); };
 
-const keys = await generateKeyPair();
+const PASS = 'test passphrase 123';
+const keys = await generateKeyPair(PASS);            // private key saved encrypted, as on the Teacher page
 fs.writeFileSync(path.join(work, 'lab-private-key.pem'), keys.privatePem);
 const now = Date.now();
 const iso = ms => new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z');
@@ -101,7 +102,7 @@ const u = new URL(href);
 check(u.pathname.endsWith('/issues/new') && u.searchParams.get('template') === 'lab-submission.yml' &&
   u.searchParams.get('session') === 'W99' && u.searchParams.get('question') === 'Q01' &&
   u.searchParams.get('title') === '[Lab] W99 Q01' && /^[0-9a-f]{16}$/.test(u.searchParams.get('receipt')), 'issue link pre-fills the form');
-const { data, sha256 } = await decryptPackage(armour, keys.privatePem);
+const { data, sha256 } = await decryptPackage(armour, keys.privatePem, PASS);
 check(u.searchParams.get('receipt') === sha256.slice(0, 16), 'receipt = package hash');
 check(data.regno === '24BCL0123' && data.name === 'Test Student' && data.session === 'W99' && data.question === 'Q01', 'identity and question in package');
 check(data.files['Main.java'] === code, 'package contains exactly the typed code');
@@ -136,13 +137,53 @@ await teacher.evaluate(() => { const s = document.getElementById('slider'); s.va
 check((await teacher.textContent('#replay-code')) === '', 'teacher page: replay at time 0 is empty');
 await teacher.reload();
 await teacher.setInputFiles('#file-key', path.join(work, 'lab-private-key.pem'));
+await teacher.fill('#passphrase', 'wrong passphrase');
+await teacher.click('#unlock');
+await teacher.waitForFunction(() => document.getElementById('unlock-msg').textContent.length > 0);
+check((await teacher.textContent('#unlock-msg')).includes('wrong passphrase'), 'teacher page refuses a wrong passphrase');
+await teacher.fill('#passphrase', PASS);
+await teacher.click('#unlock');
+await teacher.waitForFunction(() => document.getElementById('unlock-msg').textContent.includes('unlocked'));
 await teacher.fill('#pkg', 'Issue text before\n' + armour + '\nafter');
 await teacher.click('#open');
 await teacher.waitForSelector('#view:not([hidden])');
-check((await teacher.textContent('#who')).includes('24BCL0123 Test Student: W99 Q01'), 'teacher page decrypts a package with the private key');
+check((await teacher.textContent('#who')).includes('24BCL0123 Test Student: W99 Q01'), 'teacher page decrypts a package with the protected private key');
+
+if (!compilerMissing) {
+  // whole-session marking: GitHub's issue and comment lists are simulated with this submission
+  const created = iso(now - 60e3);
+  const body = `### Session\n\nW99\n\n### Question\n\nQ01\n\n### Receipt\n\n${sha256.slice(0, 16)}\n\n### Package\n\n\`\`\`text\n${armour}\n\`\`\`\n`;
+  const issues = [{ number: 7, html_url: 'https://github.com/x/y/issues/7', user: { login: 'student1' }, created_at: created,
+    labels: [{ name: 'lab-submission' }], body }];
+  const comments = [{ issue_url: 'https://api.github.com/repos/x/y/issues/7', user: { login: 'github-actions[bot]' },
+    body: '<!-- lab-intake v1 {} -->\n```text\n' + armour + '\n```' }];
+  await context.route('https://api.github.com/**', route => {
+    const u = new URL(route.request().url());
+    const page = u.searchParams.get('page');
+    const list = page && page !== '1' ? [] : u.pathname.endsWith('/issues/comments') ? comments : u.pathname.endsWith('/issues') ? issues : null;
+    return list ? route.fulfill({ body: JSON.stringify(list), contentType: 'application/json', headers: { 'access-control-allow-origin': '*' } })
+      : route.fulfill({ status: 404, body: '{}', headers: { 'access-control-allow-origin': '*' } });
+  });
+  await teacher.fill('#session', 'W99');
+  await teacher.click('#export');
+  await teacher.waitForFunction(() => /Done\.|Stopped/.test(document.getElementById('export-log').textContent), null, { timeout: 180000 });
+  const table = await teacher.textContent('#export-table');
+  check(table.includes('24BCL0123') && table.includes('2/2'), 'teacher page marks the whole session in the browser (2/2)');
+  check(!(await teacher.isHidden('#dl-csv')) && !(await teacher.isHidden('#dl-zip')), 'marks.csv and ZIP offered for download');
+}
+
+await teacher.fill('#pass1', 'short');
+await teacher.fill('#pass2', 'short');
+await teacher.click('#gen');
+check((await teacher.textContent('#gen-msg')).includes('12 characters'), 'teacher page requires a 12+ character passphrase');
+await teacher.fill('#pass1', 'another passphrase 456');
+await teacher.fill('#pass2', 'another passphrase 456');
 await teacher.click('#gen');
 await teacher.waitForSelector('#keys:not([hidden])', { timeout: 60000 });
 check((await teacher.inputValue('#public-pem')).includes('BEGIN PUBLIC KEY') && /^[0-9a-f]{16}$/.test(await teacher.textContent('#kid')), 'teacher page creates a key pair');
+const privHref = await teacher.getAttribute('#dl-private', 'href');
+const privText = await teacher.evaluate(async h => (await fetch(h)).text(), privHref);
+check(privText.includes('BEGIN ENCRYPTED PRIVATE KEY'), 'the downloaded private key is passphrase-protected');
 
 check(errors.length === 0, 'no JavaScript errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await browser.close();

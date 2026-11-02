@@ -39,10 +39,54 @@ fi
 #  - compile-time API (what javac sees): only the classes TeaVM does not have, so that no class
 #    appears twice; lab.web.BrowserStdin stays invisible to student code.
 SDK_ADDITIONS="$WORK/sdk-additions.jar"
+TEAVM_CLASSLIB="${TEAVM_CLASSLIB:-$HOME/.m2/repository/org/teavm/teavm-classlib/0.16.0/teavm-classlib-0.16.0.jar}"
+[ -f "$TEAVM_CLASSLIB" ] || { echo "missing $TEAVM_CLASSLIB (mvn -f java/pom.xml install downloads it)"; exit 1; }
 rm -rf "$WORK/sdk-additions" "$SDK_ADDITIONS"
 mkdir -p "$WORK/sdk-additions"
-( cd "$WORK/sdk-additions" && unzip -q "$PATCHES" 'org/teavm/classlib/java/util/TScanner*.class' \
-    'org/teavm/classlib/java/util/TInputMismatchException*.class' && "$JAVA25_HOME/bin/jar" cf "$SDK_ADDITIONS" org )
+# every class of the lab's additions that TeaVM does not have (java.sql, ObjectOutputStream, ...)
+python3 - "$PATCHES" "$TEAVM_CLASSLIB" "$WORK/sdk-additions" <<'PY'
+import os, sys, zipfile
+patches, classlib, out = sys.argv[1:4]
+existing = set(zipfile.ZipFile(classlib).namelist())
+n = 0
+with zipfile.ZipFile(patches) as z:
+    for name in z.namelist():
+        base = name.rsplit("/", 1)[-1]
+        if name.startswith("org/teavm/classlib/") and name.endswith(".class") and base.startswith("T") \
+                and name not in existing:
+            target = os.path.join(out, name)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with open(target, "wb") as f:
+                f.write(z.read(name))
+            n += 1
+print("compile-time API additions:", n, "classes")
+PY
+( cd "$WORK/sdk-additions" && "$JAVA25_HOME/bin/jar" cf "$SDK_ADDITIONS" org )
+
+# The run-time checks of the Java language (array index, division by zero, negative array size)
+# are added to the class files javac produces, before TeaVM translates them (java/teavm-checks).
+mkdir -p compiler/src/main/java/lab/teavm
+cp "$ROOT/java/teavm-checks/src/main/java/lab/teavm/ChecksTransformer.java" compiler/src/main/java/lab/teavm/
+python3 - compiler/src/main/java/org/teavm/javac/Compiler.java <<'PY'
+import sys
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+marker = "    public boolean generateWebAssembly(WebAssemblyCompilationOptions options) {\n"
+assert marker in src and "ChecksTransformer" not in src, "Compiler.generateWebAssembly changed upstream: review this patch"
+src = src.replace(marker, marker + """        // ---- added by the lab build: Java run-time checks in the student's classes
+        for (var file : outputFiles.values()) {
+            if (file.getName().endsWith(".class") && !labChecked.contains(file)) {
+                file.data = lab.teavm.ChecksTransformer.transform(file.data);
+                labChecked.add(file);
+            }
+        }
+""", 1)
+field = "    private final Map<String, FileData> outputFiles = new LinkedHashMap<>();\n"
+assert field in src
+src = src.replace(field, field + "    private final java.util.List<FileData> labChecked = new java.util.ArrayList<>();\n", 1)
+open(path, "w", encoding="utf-8").write(src)
+PY
+
 cat >> compiler/build.gradle <<GRADLE
 
 // ---- added by the VIT Civil Engineering Innovation Lab build (tools/browser-javac/build.sh)
@@ -115,7 +159,107 @@ patch = """    // ---- added by the lab build (tools/browser-javac/build.sh)
     }
 
 """
-open(path, "w", encoding="utf-8").write(src.replace(marker, patch + marker, 1))
+src = src.replace(marker, patch + marker, 1)
+
+# Second fix: a member whose signature mentions a type that is not part of the API (TeaVM internals
+# such as org.teavm.runtime.fs.VirtualFileAccessor, or java.io.FileDescriptor, which TeaVM lacks)
+# made javac reject every use of its class (FileWriter, FileReader, FileInputStream, ...). The
+# converter now collects the API's class names first and leaves such members out.
+old_main = "    public static void main(String[] args) throws IOException {\n        try (var output"
+assert old_main in src, "StdlibConverter.main changed upstream: review this patch"
+src = src.replace(old_main, """    static Set<String> known;
+
+    private static boolean knownType(Type type) {
+        while (type.getSort() == Type.ARRAY) {
+            type = type.getElementType();
+        }
+        return type.getSort() != Type.OBJECT || known == null || known.contains(type.getInternalName());
+    }
+
+    private static boolean knownDesc(String desc, boolean method) {
+        if (!method) {
+            return knownType(Type.getType(desc));
+        }
+        for (Type arg : Type.getArgumentTypes(desc)) {
+            if (!knownType(arg)) {
+                return false;
+            }
+        }
+        return knownType(Type.getReturnType(desc));
+    }
+
+    private static void collectKnown(String[] args) throws IOException {
+        var names = new HashSet<String>();
+        for (var i = 1; i < args.length; ++i) {
+            var file = new File(args[i]);
+            if (file.isFile()) {
+                try (var input = new ZipInputStream(new FileInputStream(args[i]))) {
+                    ZipEntry entry;
+                    while ((entry = input.getNextEntry()) != null) {
+                        if (!entry.isDirectory() && entry.getName().endsWith(".class")) {
+                            collectName(input, names);
+                        }
+                    }
+                }
+            } else {
+                try (var stream = Files.walk(file.toPath())) {
+                    for (var path : (Iterable<java.nio.file.Path>) stream::iterator) {
+                        if (Files.isRegularFile(path) && path.getFileName().toString().endsWith(".class")) {
+                            try (var in = Files.newInputStream(path)) {
+                                collectName(in, names);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        known = names;
+    }
+
+    private static void collectName(InputStream input, Set<String> names) throws IOException {
+        ClassReader reader = new ClassReader(input);
+        StdlibConverter converter = new StdlibConverter(new ClassWriter(0), collectMethodRenames(reader));
+        reader.accept(converter, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES | ClassReader.SKIP_DEBUG);
+        if (converter.visible) {
+            names.add(converter.className);
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        collectKnown(args);
+        try (var output""", 1)
+
+old_m = "        desc = renameMethodDesc(desc);\n        if (!emittedMethods.add(name + desc)) {"
+assert old_m in src, "StdlibConverter.visitMethod changed upstream: review this patch"
+src = src.replace(old_m, """        desc = renameMethodDesc(desc);
+        if (!knownDesc(desc, true)) {
+            return null;
+        }
+        if (exceptions != null) {
+            for (String exception : exceptions) {
+                if (known != null && !known.contains(rename(exception))) {
+                    return null;
+                }
+            }
+        }
+        if (!emittedMethods.add(name + desc)) {""", 1)
+
+old_f = "        desc = renameDesc(desc);\n        if (signature != null) {\n            signature = renameFieldSignature(signature);"
+assert old_f in src, "StdlibConverter.visitField changed upstream: review this patch"
+src = src.replace(old_f, """        desc = renameDesc(desc);
+        if (!knownDesc(desc, false)) {
+            return null;
+        }
+        if (signature != null) {
+            signature = renameFieldSignature(signature);""", 1)
+
+# Third fix: classes that are not public (implementation classes of the lab's additions, such as
+# java.sql.LabConnection) are left out of the API.
+old_visit = "        if ((access & Opcodes.ACC_PRIVATE) != 0) {\n            return;\n        }\n        name = rename(name);"
+assert old_visit in src, "StdlibConverter.visit changed upstream: review this patch"
+src = src.replace(old_visit, "        if ((access & Opcodes.ACC_PRIVATE) != 0 || (access & Opcodes.ACC_PUBLIC) == 0) {\n"
+                  "            return;\n        }\n        name = rename(name);", 1)
+open(path, "w", encoding="utf-8").write(src)
 PY
 
 export JAVA_HOME="$JAVA25_HOME"

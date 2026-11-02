@@ -61,11 +61,16 @@ jobs:
         run: |
           pip install -q cryptography==46.0.3
           python3 tools/lab/test_lab.py
-      - run: docker pull -q eclipse-temurin:21-jdk
+      - name: Java 21, MySQL 8.4 and Connector/J for the grader
+        run: |
+          docker pull -q eclipse-temurin:21-jdk
+          docker pull -q mysql:8.4
+          curl -fsSL --retry 5 -o /tmp/mysql-connector-j.jar https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/9.1.0/mysql-connector-j-9.1.0.jar
+          echo "8776e2ebc46072c9a47ea59d98298c4273bd9f16a7b26b5dfa4744535aa26c62  /tmp/mysql-connector-j.jar" | sha256sum -c -
       - name: Build test lab from the course solutions and broken samples
         run: bash lab-system/selftest/make_samples.sh /tmp/selftest
-      - name: Grade in isolated containers
-        run: python3 lab-system/grader/grade.py --lab /tmp/selftest/lab --tests /tmp/selftest/tests --out /tmp/selftest/results --timeout 5
+      - name: Grade in isolated containers (database exercises against a throw-away MySQL)
+        run: python3 lab-system/grader/grade.py --lab /tmp/selftest/lab --tests /tmp/selftest/tests --out /tmp/selftest/results --timeout 5 --jdbc-jar /tmp/mysql-connector-j.jar
       - name: Check the grades are what they must be
         run: python3 lab-system/selftest/verify.py /tmp/selftest/results
 
@@ -73,6 +78,15 @@ jobs:
     name: In-browser Java compiler (build from source, run every course program in Chromium)
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword"
+          --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -108,7 +122,19 @@ jobs:
           SKIP_TESTS: 'true'
           JAVAC_DIST: javac-dist
         run: bash tools/build-site.sh build/site
-      - name: Compile and run every course program in Chromium
+      - name: SQL parity programs on a real MySQL 8.4 server (their expected output)
+        run: |
+          mkdir -p lib
+          curl -fsSL -o lib/mysql-connector-j-9.1.0.jar https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/9.1.0/mysql-connector-j-9.1.0.jar
+          rm -rf build/sql-parity && mkdir -p build && cp -r tools/verification/sql-parity build/sql-parity
+          for d in build/sql-parity/*/; do
+            mysql -h 127.0.0.1 -uroot -ppassword < "$d/setup.sql"
+            (cd "$d" && DB_URL=jdbc:mysql://127.0.0.1:3306/lab_db java -cp "$GITHUB_WORKSPACE/lib/mysql-connector-j-9.1.0.jar" Main.java < /dev/null > expected.txt)
+            echo "== $d"; cat "$d/expected.txt"
+          done
+      - name: Compile and run every course program and the SQL parity programs in Chromium
+        env:
+          EXTRA_PROGRAMS: build/sql-parity
         run: |
           npm install --no-save --silent playwright@1.63.0
           npx playwright install --with-deps chromium > /dev/null

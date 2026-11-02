@@ -7,14 +7,16 @@ collection, every student's decrypted code, typing log and marks.
 |------|------|
 | `roster.csv` | `regno,name,github` for every student (GitHub username optional but recommended: a submission from another account is flagged) |
 | `tests/<QUESTION>/input-N.txt`, `expected-N.txt` | the cases used for marking (sample + hidden). Course experiments are included; Q01-Q03 are examples |
+| `tests/<QUESTION>/setup.sql` | for database questions: builds the database before every case (marked against a throw-away MySQL 8.4 server without internet access) |
 | `solutions/<QUESTION>/Main.java` | your reference solutions (used only by you to make `expected-N.txt`) |
 | `results/<SESSION>/` | written by the workflow: `README.md`, `marks.csv`, `marks-wide.csv`, `similarity.csv` and one folder per question and student |
 | `.github/workflows/collect.yml` | the collection workflow |
 
 ## Once
 
-1. Secret: Settings, Secrets and variables, Actions, New repository secret: name `LAB_PRIVATE_KEY`, value the whole
-   content of `lab-private-key.pem` (made on the website's Teacher tools page).
+1. Secrets: Settings, Secrets and variables, Actions, New repository secret: name `LAB_PRIVATE_KEY`, value the whole
+   content of `lab-private-key.pem` (made on the website's Teacher tools page); and `LAB_KEY_PASSPHRASE`, value the
+   passphrase that protects that file.
 2. Fill `roster.csv`.
 
 ## After every lab session

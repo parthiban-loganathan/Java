@@ -109,7 +109,8 @@ async function labQuestion(id) {
     cases.push({ input: (await labFile(`questions/${id}/input${suf}.txt`)) ?? '', expected: exp });
   }
   const title = (md.match(/^#\s+(.+)$/m) || [, id])[1];
-  return { id, title, markdown: md, base: `lab/questions/${id}/`, cases, note: '' };
+  const sql = (await labFile(`questions/${id}/setup.sql`)) || '';
+  return { id, title, markdown: md, base: `lab/questions/${id}/`, cases, note: '', sql };
 }
 async function courseQuestion(p) {
   const base = `course/${p.path}/`;
@@ -119,10 +120,11 @@ async function courseQuestion(p) {
     if (exp === null) continue;
     cases.push({ input: await fetchText(`${base}input${suf}.txt`).catch(() => ''), expected: exp });
   }
-  return { id: p.id, title: p.title, markdown: await fetchText(base + 'README.md'), base, cases, note: p.javacNote || (p.browser ? '' : p.note) };
+  const sql = p.setup ? await fetchText(base + 'setup.sql') : '';
+  return { id: p.id, title: p.title, markdown: await fetchText(base + 'README.md'), base, cases, note: p.note || '', sql };
 }
 function questionIds() {
-  if (mode === 'practice') return catalog.filter(p => !p.requires).map(p => p.id);
+  if (mode === 'practice') return catalog.map(p => p.id);
   return (control.sessions.find(s => s.id === mode)?.questions) || [];
 }
 function titleOf(id) {
@@ -168,10 +170,6 @@ function showDiagnostics(diags) {
 }
 function diagText(diags) {
   let text = diags.map(d => (d.lineNumber > 0 ? `Line ${d.lineNumber}: ` : '') + d.message).join('\n');
-  if (/\b(File(Writer|Reader|InputStream|OutputStream)|Object(Output|Input)Stream|java\.sql|DriverManager)\b/.test(editor.getValue())) {
-    text += '\n\nNote: files, object serialization and databases cannot be used inside the browser. Test this program in ' +
-      'GitHub Codespaces or on a lab PC; you can still submit it: the teacher marks it with the real JDK.';
-  }
   return text;
 }
 async function compile() {
@@ -207,7 +205,7 @@ $('run').addEventListener('click', async () => {
     return;
   }
   busy(true, 'Running...');
-  const r = await runner.run(c.wasm, $('stdin').value, { timeLimitMs: 5000 });
+  const r = await runner.run(c.wasm, $('stdin').value, { timeLimitMs: 5000, sql: question.sql });
   lastRun = { at: new Date().toISOString(), outcome: outcome(r), ms: r.ms, stdin: $('stdin').value.slice(0, 2000), stdout: r.stdout.slice(0, 4000) };
   recorder.event('x', outcome(r), r.ms);
   $('output').innerHTML = render(r);
@@ -227,7 +225,7 @@ $('check').addEventListener('click', async () => {
   const rows = [];
   for (const [i, k] of question.cases.entries()) {
     busy(true, `Case ${i + 1} of ${question.cases.length}...`);
-    const r = await runner.run(c.wasm, k.input, { timeLimitMs: 5000 });
+    const r = await runner.run(c.wasm, k.input, { timeLimitMs: 5000, sql: question.sql });
     const ok = !r.timedOut && runner.normalise(r.stdout) === runner.normalise(k.expected);
     passed += ok;
     rows.push(`<div class="case"><b>Sample case ${i + 1}: </b>${ok ? '<span class="badge ok">passed</span>' : '<span class="badge warn">different output</span>'}

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>lab.civiltech</groupId>
+    <artifactId>civiltech-lab</artifactId>
+    <version>1.0.0</version>
+  </parent>
+  <artifactId>teavm-checks</artifactId>
+  <name>Bytecode transformer: Java run-time checks in students' code</name>
+  <description>
+    Rewrites class files so that they perform the checks the Java language requires and TeaVM's
+    JavaScript and WebAssembly output omits: array index (ArrayIndexOutOfBoundsException
+    "Index i out of bounds for length n"), integer division and remainder by zero
+    (ArithmeticException "/ by zero"), negative array size. Run on the course programs before
+    TeaVM (web-bridge) and built into the in-browser compiler (tools/browser-javac/build.sh).
+  </description>
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm</artifactId>
+      <version>9.7.1</version>
+    </dependency>
+  </dependencies>
+</project>

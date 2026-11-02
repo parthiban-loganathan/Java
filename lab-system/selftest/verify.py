@@ -25,6 +25,10 @@ sec = res["X-readsecrets"]["cases"][0]["actual"]
 expect("GITHUB_TOKEN" not in sec and "ACTIONS_RUNTIME_TOKEN" not in sec and "ghp_" not in sec, "X-readsecrets must not see tokens")
 expect("src read-only" in sec, "X-readsecrets: source folder must be read-only")
 expect(res["X-forkbomb"]["passed"] == 0, "X-forkbomb must be contained")
+dbn = res["X-dbnetwork"]["cases"][0]["actual"]
+expect("no internet" in dbn and "NETWORK REACHED" not in dbn, "X-dbnetwork must not reach the internet")
+expect("database reachable" in dbn, "X-dbnetwork must reach the throw-away MySQL server")
+expect(res["E16"]["total"] >= 1 and res["E16"]["passed"] == res["E16"]["total"], "E16 (JDBC) must pass against MySQL")
 expect(res["X-renamed"]["passed"] == res["X-renamed"]["total"] == 1, "X-renamed (public class Interest) must run")
 for p in problems:
     print("FAIL", p)

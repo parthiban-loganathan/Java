@@ -12,6 +12,7 @@
 
   <modules>
     <module>civiltech-core</module>
+    <module>teavm-checks</module>
     <module>teavm-patches</module>
     <module>web-bridge</module>
   </modules>

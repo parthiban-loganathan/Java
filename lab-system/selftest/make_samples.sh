@@ -20,4 +20,7 @@ mk X-readsecrets  'public class Main { public static void main(String[] a) { Sys
 mk X-forkbomb     'public class Main { public static void main(String[] a) throws Exception { for (int i = 0; i < 100000; i++) new Thread(() -> { try { Thread.sleep(100000); } catch (Exception e) {} }).start(); } }'
 mkdir -p "$OUT/lab/X-renamed"; sed 's/public class Main/public class Interest/' "$ROOT/course/experiments/E01a-financing-interest/Main.java" > "$OUT/lab/X-renamed/Interest.java"
 mkdir -p "$OUT/tests/X-renamed"; cp "$OUT/tests/E01a/"* "$OUT/tests/X-renamed/"
+# a database exercise must still not reach the internet (it shares only the MySQL container's network)
+mkdir -p "$OUT/lab/X-dbnetwork" "$OUT/tests/X-dbnetwork"; cp "$OUT/tests/E16/"* "$OUT/tests/X-dbnetwork/"
+printf '%s\n' 'public class Main { public static void main(String[] a) throws Exception { try { new java.net.URL("https://example.com").openStream().read(); System.out.println("NETWORK REACHED"); } catch (Exception e) { System.out.println("no internet"); } try (java.sql.Connection c = java.sql.DriverManager.getConnection("jdbc:mysql://localhost:3306/company_db", "root", "password")) { System.out.println("database reachable"); } } }' > "$OUT/lab/X-dbnetwork/Main.java"
 echo "sample lab ready in $OUT"
