@@ -235,12 +235,9 @@ src = src.replace(old_m, """        desc = renameMethodDesc(desc);
         if (!knownDesc(desc, true)) {
             return null;
         }
-        if (exceptions != null) {
-            for (String exception : exceptions) {
-                if (known != null && !known.contains(rename(exception))) {
-                    return null;
-                }
-            }
+        if (exceptions != null && known != null) {     // undeclared exception types: leave them out
+            exceptions = java.util.Arrays.stream(exceptions).filter(e -> known.contains(rename(e)))
+                    .toArray(String[]::new);
         }
         if (!emittedMethods.add(name + desc)) {""", 1)
 
@@ -253,12 +250,6 @@ src = src.replace(old_f, """        desc = renameDesc(desc);
         if (signature != null) {
             signature = renameFieldSignature(signature);""", 1)
 
-# Third fix: classes that are not public (implementation classes of the lab's additions, such as
-# java.sql.LabConnection) are left out of the API.
-old_visit = "        if ((access & Opcodes.ACC_PRIVATE) != 0) {\n            return;\n        }\n        name = rename(name);"
-assert old_visit in src, "StdlibConverter.visit changed upstream: review this patch"
-src = src.replace(old_visit, "        if ((access & Opcodes.ACC_PRIVATE) != 0 || (access & Opcodes.ACC_PUBLIC) == 0) {\n"
-                  "            return;\n        }\n        name = rename(name);", 1)
 open(path, "w", encoding="utf-8").write(src)
 PY
 

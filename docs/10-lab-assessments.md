@@ -103,9 +103,12 @@ Every student needs a free GitHub account (Guide 3, Part A). Nothing else: no re
 7. **Collect.** In `java-lab-gradebook`: **Actions**, **Collect and mark lab submissions**, **Run workflow**,
    session `T00`. When green (3-6 minutes), open `results/T00/README.md`: your test student with *6/6* (or what
    your program earned), typed characters, active minutes and the flag *1 paste attempt(s) blocked*.
-8. **Replay.** Open `results/T00/Q01/24BCL0001/<issue number>/submission.json`, **Download raw file**. On
-   `teacher.html`, part 2, choose that file, **Open**: drag the slider or press **Play** to watch the typing.
-9. Label the test issues `lab-ignore` (issue, right column, **Labels**) so they are left out from now on.
+8. **Mark in the browser too.** `teacher.html`, part 2: choose `lab-private-key.pem`, type the passphrase, **Unlock**
+   (try a wrong passphrase first: it is refused). Part 3: session `T00`, **Fetch, decrypt and mark**: the table shows
+   your test student; download `marks.csv` and the ZIP and open them.
+9. **Replay.** In the ZIP (or the gradebook's `results/T00/Q01/24BCL0001/<issue number>/`) take `submission.json`;
+   `teacher.html`, part 4, choose it, **Open**: drag the slider or press **Play** to watch the typing.
+10. Label the test issues `lab-ignore` (issue, right column, **Labels**) so they are left out from now on.
 
 What the automatic checks in this repository verify on every change (tab Actions, workflow **CI**): the compiler is
 built from source and every course program is compiled and run in Chromium and compared with the JDK; the Lab and
