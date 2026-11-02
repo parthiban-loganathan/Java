@@ -43,10 +43,24 @@ jobs:
           retention-days: 7
 
   lab-grader:
-    name: Weekly lab grader in Docker (correct, wrong, broken and hostile programs)
+    name: Lab grader in Docker (correct, wrong, broken and hostile programs) and submission system
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Submission system (session control, intake, encryption Python/browser, collection and marking)
+        run: |
+          pip install -q cryptography==46.0.3
+          python3 tools/lab/test_lab.py
       - run: docker pull -q eclipse-temurin:21-jdk
       - name: Build test lab from the course solutions and broken samples
         run: bash lab-system/selftest/make_samples.sh /tmp/selftest
@@ -101,6 +115,9 @@ jobs:
           (cd build/site && python3 -m http.server 8765 > /dev/null 2>&1 &)
           sleep 2
           node tools/verification/browser_javac_check.mjs http://localhost:8765/ course javac-report.md
+      - name: Java Lab and Teacher pages end to end (typing, paste blocking, Check, Run, encrypted submission, replay)
+        if: always()
+        run: node tools/verification/lab_page_check.mjs http://localhost:8765/
       - name: Report
         if: always()
         run: cat javac-report.md >> "$GITHUB_STEP_SUMMARY" || true

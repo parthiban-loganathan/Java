@@ -6,8 +6,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.util.InputMismatchException;
 import java.util.NoSuchElementException;
@@ -37,7 +35,7 @@ public final class TScanner implements Closeable {
             pos = BrowserStdin.position();
         } else {
             stdin = false;
-            src = readAll(new InputStreamReader(in));
+            src = readAll(in);
         }
     }
 
@@ -50,13 +48,47 @@ public final class TScanner implements Closeable {
         src = text;
     }
 
-    private static String readAll(Reader r) {
+    /**
+     * Reads a whole stream as UTF-8. Decoded by hand: the WebAssembly runtime of the in-browser
+     * compiler cannot use InputStreamReader (its charset decoder needs JavaScript-only buffers).
+     */
+    private static String readAll(InputStream in) {
         StringBuilder sb = new StringBuilder();
-        char[] b = new char[4096];
-        int n;
         try {
-            while ((n = r.read(b)) > 0) {
-                sb.append(b, 0, n);
+            int b;
+            while ((b = in.read()) >= 0) {
+                int cp;
+                int extra;
+                if (b < 0x80) {
+                    cp = b;
+                    extra = 0;
+                } else if (b >= 0xF0 && b < 0xF8) {
+                    cp = b & 0x07;
+                    extra = 3;
+                } else if (b >= 0xE0) {
+                    cp = b & 0x0F;
+                    extra = 2;
+                } else if (b >= 0xC0) {
+                    cp = b & 0x1F;
+                    extra = 1;
+                } else {
+                    sb.append('\uFFFD');
+                    continue;
+                }
+                boolean bad = false;
+                for (int k = 0; k < extra; k++) {
+                    int c = in.read();
+                    if (c < 0 || (c & 0xC0) != 0x80) {
+                        bad = true;
+                        break;
+                    }
+                    cp = (cp << 6) | (c & 0x3F);
+                }
+                if (bad) {
+                    sb.append('\uFFFD');
+                } else {
+                    sb.appendCodePoint(cp);
+                }
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);

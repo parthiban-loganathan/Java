@@ -33,7 +33,16 @@ if [ ! -f "javac/build/jdk-$JDK_REVISION.zip" ]; then
       && git archive --format=zip --prefix="jdk25u-$JDK_REVISION/" FETCH_HEAD -o "$WORK/teavm-javac/javac/build/jdk-$JDK_REVISION.zip" )
 fi
 
-# Add the lab's class-library additions (our classes replace TeaVM's where both exist)
+# Add the lab's class-library additions.
+#  - runtime class library (what student programs are linked with): every class of the jar; ours
+#    replace TeaVM's where both exist (Formatter, Math) or add what TeaVM lacks (Scanner).
+#  - compile-time API (what javac sees): only the classes TeaVM does not have, so that no class
+#    appears twice; lab.web.BrowserStdin stays invisible to student code.
+SDK_ADDITIONS="$WORK/sdk-additions.jar"
+rm -rf "$WORK/sdk-additions" "$SDK_ADDITIONS"
+mkdir -p "$WORK/sdk-additions"
+( cd "$WORK/sdk-additions" && unzip -q "$PATCHES" 'org/teavm/classlib/java/util/TScanner*.class' \
+    'org/teavm/classlib/java/util/TInputMismatchException*.class' && "$JAVA25_HOME/bin/jar" cf "$SDK_ADDITIONS" org )
 cat >> compiler/build.gradle <<GRADLE
 
 // ---- added by the VIT Civil Engineering Innovation Lab build (tools/browser-javac/build.sh)
@@ -49,8 +58,8 @@ tasks.named("prepareTeaVMClassLib") {
     }
 }
 tasks.named("generateClassLib") {
-    inputs.file labPatches
-    args labPatches.absolutePath
+    inputs.file "$SDK_ADDITIONS"
+    args "$SDK_ADDITIONS"
 }
 GRADLE
 
@@ -69,7 +78,7 @@ Apache License 2.0, (c) Alexey Andreev. Contains the Java compiler from OpenJDK
 (openjdk/jdk25u revision $JDK_REVISION), GNU General Public License version 2 with the
 Classpath Exception (https://openjdk.org/legal/gplv2+ce.html), and the TeaVM class library
 (Apache License 2.0), with additions from java/teavm-patches of this repository (MIT; the
-Formatter is a modified copy of TeaVM's, Apache License 2.0).
+Formatter and Math are modified copies of TeaVM's, Apache License 2.0).
 Built $(date -u +%Y-%m-%dT%H:%MZ).
 NOTICE
 ls -la "$OUT"

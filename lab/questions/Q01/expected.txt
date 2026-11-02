@@ -1,0 +1,3 @@
+Runoff coefficient C = 0.70
+Peak runoff Q = 0.389 m3/s
+Culvert class: small

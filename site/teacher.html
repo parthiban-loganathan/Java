@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teacher Tools</title>
+  <meta name="description" content="Create the submission key pair, open an encrypted Java Lab submission and replay the student's typing.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/lab.css">
+  <link rel="stylesheet" href="assets/vendor/highlight/github.min.css" id="hl-light">
+  <link rel="stylesheet" href="assets/vendor/highlight/github-dark.min.css" id="hl-dark" disabled>
+  <script src="assets/vendor/highlight/highlight.min.js"></script>
+  <style>
+    textarea.mono { font-family: var(--mono); font-size: .74rem; }
+    #replay-code { max-height: 520px; overflow: auto; }
+    .timeline-bar { position: relative; height: 26px; background: var(--surface-2); border-radius: 6px; margin: 8px 0; overflow: hidden; }
+    .timeline-bar span { position: absolute; top: 0; bottom: 0; width: 2px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+    .events { max-height: 300px; overflow: auto; font-family: var(--mono); font-size: .76rem; white-space: pre; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Teacher tools</h1>
+  <p class="muted" style="max-width:900px">Everything on this page runs in your browser. Keys and decrypted submissions are
+    never sent anywhere. Step-by-step instructions: <a href="docs.html#10-lab-assessments">Guide 10: Java Lab assessments</a>.</p>
+
+  <div class="grid cols-2" style="align-items:start">
+    <section class="card">
+      <h2>1. Create the submission key pair (once)</h2>
+      <p class="small">Students' packages are encrypted with the <b>public</b> key; only the <b>private</b> key opens them.
+        Create the pair once per semester.</p>
+      <button class="btn primary" id="gen" type="button">Create key pair</button>
+      <div id="keys" hidden>
+        <p class="small">Key id <code id="kid"></code></p>
+        <ol class="small" style="padding-left:18px">
+          <li><b>Download the private key</b> and keep it safe (password manager or an encrypted drive). It cannot be recreated.
+            <br><a class="btn sm" id="dl-private" download="lab-private-key.pem">Download lab-private-key.pem</a></li>
+          <li>Add it to the <b>private gradebook</b> repository: Settings, Secrets and variables, Actions, New repository secret,
+            name <code>LAB_PRIVATE_KEY</code>, value: the whole file content.</li>
+          <li>Publish the public key: in the lab repository create the file <code>lab/teacher-public-key.pem</code> with this text.
+            <br><a class="btn sm" id="dl-public" download="teacher-public-key.pem">Download teacher-public-key.pem</a>
+            <a class="btn sm" id="create-public" rel="noopener" target="_blank">Create the file on GitHub</a></li>
+        </ol>
+        <textarea class="mono" id="public-pem" rows="6" readonly></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2. Open a submission</h2>
+      <p class="small">Either a <code>submission.json</code> from the gradebook (already decrypted), or a package (from the issue)
+        together with your private key file.</p>
+      <div class="field"><label for="file-json">submission.json</label><input type="file" id="file-json" accept=".json,application/json"></div>
+      <div class="field"><label for="file-key">or: private key file (lab-private-key.pem)</label><input type="file" id="file-key" accept=".pem,.txt"></div>
+      <div class="field"><label for="pkg">and the package, or the issue number</label>
+        <textarea class="mono" id="pkg" rows="4" placeholder="-----BEGIN LAB SUBMISSION----- ... or 123"></textarea></div>
+      <button class="btn primary" id="open" type="button">Open</button>
+      <p class="small" id="open-msg"></p>
+    </section>
+  </div>
+
+  <section class="card" id="view" style="margin-top:16px" hidden>
+    <h2 id="who"></h2>
+    <div class="stats small" id="summary"></div>
+    <div id="flags"></div>
+    <h3>Replay of the typing</h3>
+    <div class="row" style="align-items:center">
+      <button class="btn sm" id="play" type="button">Play</button>
+      <input type="range" id="slider" min="0" max="0" value="0" style="flex:1">
+      <span class="small" id="clock"></span>
+    </div>
+    <div class="timeline-bar" id="bar" title="green: typing, red: paste blocked, orange: left the page, blue: run/check"></div>
+    <div class="grid cols-2" style="align-items:start">
+      <div><pre><code class="language-java" id="replay-code"></code></pre></div>
+      <div><div class="small muted">Events (time from start)</div><div class="events" id="events"></div></div>
+    </div>
+    <h3>Submitted code</h3>
+    <pre><code class="language-java" id="final-code"></code></pre>
+  </section>
+</main>
+<script type="module" src="assets/js/teacher.js"></script>
+</body>
+</html>

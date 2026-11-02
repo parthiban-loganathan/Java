@@ -50,7 +50,11 @@ with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as z:
             z.write(full, os.path.join("civiltech-innovation-starter", os.path.relpath(full, src)))
 PY
 
-echo "== Weekly lab system templates (student and gradebook repositories)"
+echo "== Lab: status, questions and public key (also read live from GitHub by lab.html)"
+mkdir -p "$OUT/lab"
+cp -R "$ROOT/lab/." "$OUT/lab/"
+
+echo "== Private gradebook template (ZIP)"
 python3 "$ROOT/lab-system/package.py" "$ROOT/course" "$OUT/downloads"
 
 touch "$OUT/.nojekyll"

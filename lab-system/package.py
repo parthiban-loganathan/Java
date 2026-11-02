@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Assembles the two repository templates of the weekly lab system as ZIP files.
+"""Assembles the teacher's private gradebook repository as a ZIP file.
 
-    python3 lab-system/package.py course OUT_DIR
-creates OUT_DIR/java-lab-student.zip and OUT_DIR/java-lab-gradebook.zip:
-  student:   template + lab-tools/grader + lab-tools/tests (from course)
-  gradebook: template + grader + tests (from course) + reference/ (course solutions)
+    python3 lab-system/package.py course OUT_DIR       -> OUT_DIR/java-lab-gradebook.zip
+Contents: lab-system/gradebook (workflow, README, roster, Q01-Q03 example tests and solutions)
++ tests and reference solutions of every course program (course/*/*/input*.txt, expected*.txt).
 """
 import os
 import shutil
@@ -22,39 +21,22 @@ def zipdir(src, dst, top):
             dirs.sort()
             for f in sorted(files):
                 full = os.path.join(root, f)
-                info = zipfile.ZipInfo.from_file(full, os.path.join(top, os.path.relpath(full, src)))
-                with open(full, "rb") as fh:
-                    z.writestr(info, fh.read(), zipfile.ZIP_DEFLATED)
-
-
-def copy_grader(dst):
-    os.makedirs(dst, exist_ok=True)
-    for f in ("grade.py", "collect.py", "sandbox.sh"):
-        shutil.copy(os.path.join(HERE, "grader", f), dst)
-    os.chmod(os.path.join(dst, "sandbox.sh"), 0o755)
+                z.write(full, os.path.join(top, os.path.relpath(full, src)))
 
 
 def main(course, out):
     os.makedirs(out, exist_ok=True)
     tmp = tempfile.mkdtemp()
     try:
-        s = os.path.join(tmp, "student")
-        shutil.copytree(os.path.join(HERE, "student-template"), s)
-        copy_grader(os.path.join(s, "lab-tools", "grader"))
-        os.remove(os.path.join(s, "lab-tools", "grader", "collect.py"))
-        subprocess.run([sys.executable, os.path.join(HERE, "make_tests.py"), course, os.path.join(s, "lab-tools", "tests")], check=True)
-        zipdir(s, os.path.join(out, "java-lab-student.zip"), "java-lab-student")
-
         g = os.path.join(tmp, "gradebook")
-        shutil.copytree(os.path.join(HERE, "gradebook-template"), g)
-        copy_grader(os.path.join(g, "grader"))
+        shutil.copytree(os.path.join(HERE, "gradebook"), g)
         subprocess.run([sys.executable, os.path.join(HERE, "make_tests.py"), course, os.path.join(g, "tests")], check=True)
         for group in ("lessons", "experiments"):
             for folder in sorted(os.listdir(os.path.join(course, group))):
                 d = os.path.join(course, group, folder)
                 if not os.path.exists(os.path.join(d, "meta.properties")):
                     continue
-                ref = os.path.join(g, "reference", folder.split("-")[0])
+                ref = os.path.join(g, "solutions", folder.split("-")[0])
                 os.makedirs(ref, exist_ok=True)
                 for f in os.listdir(d):
                     if f.endswith(".java"):
@@ -62,7 +44,7 @@ def main(course, out):
         zipdir(g, os.path.join(out, "java-lab-gradebook.zip"), "java-lab-gradebook")
     finally:
         shutil.rmtree(tmp)
-    print(f"wrote {out}/java-lab-student.zip and {out}/java-lab-gradebook.zip")
+    print(f"wrote {out}/java-lab-gradebook.zip")
 
 
 if __name__ == "__main__":

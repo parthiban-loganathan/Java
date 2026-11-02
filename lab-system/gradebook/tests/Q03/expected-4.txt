@@ -1,0 +1,3 @@
+Average increase per decade: -1500
+Year +10: population 82500, demand 11.14 MLD
+Year +20: population 81000, demand 10.94 MLD

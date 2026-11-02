@@ -27,7 +27,8 @@ for (const group of ['lessons', 'experiments']) {
       const inp = path.join(dir, `input${suf}.txt`);
       cases.push({ input: fs.existsSync(inp) ? fs.readFileSync(inp, 'utf8') : '', expected: fs.readFileSync(exp, 'utf8') });
     }
-    programs.push({ id: folder.split('-')[0], files, cases, differs: /browserDiffers=true/.test(meta) });
+    programs.push({ id: folder.split('-')[0], files, cases,
+      differs: /browserDiffers=true/.test(meta) || /browser=false/.test(meta) });   // documented in meta.properties
   }
 }
 
@@ -66,7 +67,7 @@ for (const p of programs) {
     status = bad.length === 0 ? 'PASS' : `FAIL ${r.results.length - bad.length}/${r.results.length}`;
     if (bad.length) {
       const b = bad[0];
-      detail = `exception=${b.exception} timedOut=${b.timedOut} got=${JSON.stringify(b.stdout.slice(0, 160))} want=${JSON.stringify(b.expected.slice(0, 160))}`;
+      detail = `exception=${b.exception} timedOut=${b.timedOut} got=${JSON.stringify(b.stdout.slice(0, 400))} want=${JSON.stringify(b.expected.slice(0, 400))}`;
     }
   }
   if (status === 'PASS') pass++;

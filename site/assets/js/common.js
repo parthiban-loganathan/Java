@@ -2,10 +2,16 @@
 export const REPO_URL = 'https://github.com/parthiban-loganathan/Java';
 export const CODESPACES_URL = 'https://codespaces.new/parthiban-loganathan/Java';
 
-/** Weekly lab system: the teacher's account and the student template repository (docs/10). */
+/**
+ * Lab assessments (lab.html, docs/10): the public repository whose issues receive the encrypted
+ * submissions, and where the lab status (lab/control.json) and questions are read from.
+ * raw.githubusercontent.com is used so that opening or closing is visible within seconds,
+ * without waiting for the website to be rebuilt.
+ */
 export const LAB = {
-  teacher: 'parthiban-loganathan',
-  studentTemplate: 'parthiban-loganathan/java-lab-student',
+  repo: 'parthiban-loganathan/Java',
+  branch: 'main',
+  raw: 'https://raw.githubusercontent.com/parthiban-loganathan/Java/main/',
 };
 
 /** URL of a new GitHub issue from an issue form, with fields pre-filled (field ids as query keys). */
@@ -19,7 +25,7 @@ const NAV = [
   ['learn.html', 'Learn Java'],
   ['catchment.html', 'Catchment simulator'],
   ['starter/index.html', 'Starter template'],
-  ['weekly.html', 'Weekly lab'],
+  ['lab.html', 'Java Lab'],
   ['problems.html', '100 Problems'],
   ['submit.html', 'Submit'],
   ['projects.html', 'Projects'],

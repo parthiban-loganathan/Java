@@ -2,10 +2,13 @@
  *  MODIFIED COPY for the VIT Civil Engineering Innovation Lab browser build.
  *  Original: TeaVM 0.16.0, classlib/src/main/java/org/teavm/classlib/java/util/TFormatter.java
  *  (Apache License 2.0, notice below). Placing this class on the TeaVM classpath replaces the
- *  original. Changes, both marked "LAB CHANGE":
+ *  original. Changes, marked "LAB CHANGE":
  *   1. %n is supported (writes '\n', the line separator on Linux, macOS and in the browser).
  *   2. %f rounds like the JDK: HALF_UP applied to the shortest decimal representation of the
- *      double (Double.toString), instead of DecimalFormat's default HALF_EVEN.
+ *      double (Double.toString), instead of DecimalFormat's default HALF_EVEN; it is formatted
+ *      with BigDecimal, without DecimalFormat or locale data, so that it also works in the
+ *      WebAssembly runtime of the in-browser compiler.
+ *   3. The ',' flag groups digits in threes with ',' without locale data.
  */
 /*
  *  Copyright 2017 Alexey Andreev.
@@ -32,16 +35,12 @@ import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.text.NumberFormat;
 import java.util.DuplicateFormatFlagsException;
 import java.util.FormatFlagsConversionMismatchException;
 import java.util.IllegalFormatConversionException;
 import java.util.Locale;
 import java.util.UnknownFormatConversionException;
 import org.teavm.classlib.impl.IntegerUtil;
-import org.teavm.classlib.java.text.TDecimalFormat;
 
 public final class TFormatter implements Closeable, Flushable {
     private Locale locale;
@@ -289,62 +288,70 @@ public final class TFormatter implements Closeable, Flushable {
                 throw new IllegalFormatConversionException(specifier, arg == null ? null : arg.getClass());
             }
 
-            // LAB CHANGE 2: JDK-compatible rounding (HALF_UP on the shortest decimal representation)
-            if (arg instanceof Double && !((Double) arg).isNaN() && !((Double) arg).isInfinite()) {
-                arg = new BigDecimal(Double.toString((Double) arg)).setScale(precision, java.math.RoundingMode.HALF_UP);
-            } else if (arg instanceof Float && !((Float) arg).isNaN() && !((Float) arg).isInfinite()) {
-                arg = new BigDecimal(Float.toString((Float) arg)).setScale(precision, java.math.RoundingMode.HALF_UP);
-            }
-
-            TDecimalFormat format = new TDecimalFormat();
-            format.setDecimalFormatSymbols(new DecimalFormatSymbols(locale));
-            if (width != -1) {
-                int decimalSize = predictDecimalSize(negative, format);
-                format.setMaximumIntegerDigits(decimalSize);
-                if ((flags & TFormattableFlags.ZERO_PADDED) != 0) {
-                    format.setMinimumIntegerDigits(decimalSize);
+            // LAB CHANGE 2: JDK-compatible rounding (HALF_UP on the shortest decimal representation of
+            // the double, as java.util.Formatter does), formatted without DecimalFormat so that it
+            // works the same in the JavaScript and the WebAssembly runtimes (no locale data needed).
+            if (arg instanceof Double) {
+                double d = (Double) arg;
+                negative = d < 0 || (d == 0 && 1 / d < 0);
+                if (Double.isNaN(d) || Double.isInfinite(d)) {
+                    precision = -1;
+                    formatGivenString(upperCase, Double.isNaN(d) ? "NaN" : (d > 0 ? "Infinity" : "-Infinity"));
+                    return;
                 }
+                arg = new BigDecimal(Double.toString(Math.abs(d)));
+            } else if (arg instanceof Float) {
+                float f = (Float) arg;
+                negative = f < 0 || (f == 0 && 1 / f < 0);
+                if (Float.isNaN(f) || Float.isInfinite(f)) {
+                    precision = -1;
+                    formatGivenString(upperCase, Float.isNaN(f) ? "NaN" : (f > 0 ? "Infinity" : "-Infinity"));
+                    return;
+                }
+                arg = new BigDecimal(Float.toString(Math.abs(f)));
+            } else {
+                arg = ((BigDecimal) arg).abs();
             }
-            format.setMaximumFractionDigits(precision);
-            format.setMinimumFractionDigits(precision);
-            format.setGroupingUsed((flags & TFormattableFlags.GROUPING_SEPARATOR) != 0);
-            if ((flags & TFormattableFlags.PARENTHESIZED_NEGATIVE) != 0) {
-                format.setNegativePrefix("(");
-                format.setNegativeSuffix(")");
+            String digits = ((BigDecimal) arg).setScale(precision, java.math.RoundingMode.HALF_UP).toPlainString();
+            int dot = digits.indexOf('.');
+            String intPart = dot < 0 ? digits : digits.substring(0, dot);
+            String fraction = dot < 0 ? "" : digits.substring(dot);
+            if ((flags & TFormattableFlags.GROUPING_SEPARATOR) != 0) {
+                intPart = group(intPart);
             }
-            if ((flags & TFormattableFlags.SIGNED) != 0) {
-                format.setPositivePrefix("+"); // DecimalFormatSymbols has no plus sign
-            } else if ((flags & TFormattableFlags.LEADING_SPACE) != 0) {
-                format.setPositivePrefix(" ");
-            }
-
-            String str = format.format(arg);
-
-            precision = -1; // prevent formatGivenString from trimming
-
-            formatGivenString(upperCase, str);
-        }
-
-        private int predictDecimalSize(boolean negative, TDecimalFormat format) {
-            int decimalSize = width;
-            if (precision > 0) {
-                decimalSize -= precision + 1; // width also includes decimal places. Subtract them!
-            }
-            // signs take up space as well. Also subtract them!
+            String prefix = "";
+            String suffix = "";
             if (negative) {
                 if ((flags & TFormattableFlags.PARENTHESIZED_NEGATIVE) != 0) {
-                    decimalSize -= 2;
+                    prefix = "(";
+                    suffix = ")";
                 } else {
-                    decimalSize--;
+                    prefix = "-";
                 }
-            } else if ((flags & (TFormattableFlags.SIGNED | TFormattableFlags.LEADING_SPACE)) != 0) {
-                decimalSize--;
+            } else if ((flags & TFormattableFlags.SIGNED) != 0) {
+                prefix = "+";
+            } else if ((flags & TFormattableFlags.LEADING_SPACE) != 0) {
+                prefix = " ";
             }
-            // the grouping separator also takes up space. You know the drill.
-            if ((flags & TFormattableFlags.GROUPING_SEPARATOR) != 0) {
-                decimalSize -= decimalSize / (format.getGroupingSize() + 1);
+            StringBuilder body = new StringBuilder(intPart).append(fraction);
+            if ((flags & TFormattableFlags.ZERO_PADDED) != 0 && width > 0) {
+                while (prefix.length() + body.length() + suffix.length() < width) {
+                    body.insert(0, '0');
+                }
             }
-            return decimalSize;
+            precision = -1; // prevent formatGivenString from trimming
+            formatGivenString(upperCase, prefix + body + suffix);
+        }
+
+        /** Digits grouped in threes with ',' (the JDK's English locales). */
+        private static String group(String digits) {
+            StringBuilder sb = new StringBuilder();
+            int first = digits.length() % 3 == 0 ? 3 : digits.length() % 3;
+            sb.append(digits, 0, Math.min(first, digits.length()));
+            for (int i = first; i < digits.length(); i += 3) {
+                sb.append(',').append(digits, i, i + 3);
+            }
+            return sb.toString();
         }
 
         private void verifyFloatFlags() {
@@ -458,8 +465,8 @@ public final class TFormatter implements Closeable, Flushable {
 
             StringBuilder valueSb = new StringBuilder();
             if ((flags & TFormattableFlags.GROUPING_SEPARATOR) != 0) {
-                char separator = new DecimalFormatSymbols(locale).getGroupingSeparator();
-                int size = ((DecimalFormat) NumberFormat.getNumberInstance(locale)).getGroupingSize();
+                char separator = ','; // LAB CHANGE 3: no locale data needed (JDK English locales)
+                int size = 3;
                 int offset = str.length() % size;
                 if (offset == 0) {
                     offset = size;
