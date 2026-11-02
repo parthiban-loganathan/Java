@@ -108,7 +108,13 @@ abstract class Expr {
             if (n == null) {
                 return null;
             }
-            return n instanceof Long ? (Object) (-(Long) n) : (Object) (-(Double) n);
+            if (n instanceof Long) {
+                return -(Long) n;
+            }
+            if (n instanceof java.math.BigDecimal) {
+                return ((java.math.BigDecimal) n).negate();
+            }
+            return -(Double) n;
         }
     }
 
@@ -188,38 +194,7 @@ abstract class Expr {
                 default:
                     break;
             }
-            if (a == null || b == null) {
-                return null;
-            }
-            Object x = Values.number(a);
-            Object y = Values.number(b);
-            boolean ints = x instanceof Long && y instanceof Long;
-            switch (op) {
-                case "+":
-                    return ints ? (Object) ((Long) x + (Long) y) : (Object) (Values.toDouble(x) + Values.toDouble(y));
-                case "-":
-                    return ints ? (Object) ((Long) x - (Long) y) : (Object) (Values.toDouble(x) - Values.toDouble(y));
-                case "*":
-                    return ints ? (Object) ((Long) x * (Long) y) : (Object) (Values.toDouble(x) * Values.toDouble(y));
-                case "/": {
-                    double d = Values.toDouble(y);
-                    return d == 0 ? null : (Object) (Values.toDouble(x) / d);
-                }
-                case "DIV": {
-                    long d = Values.toLong(y);
-                    return d == 0 ? null : (Object) ((long) (Values.toDouble(x) / Values.toDouble(y)));
-                }
-                case "%": {
-                    if (ints) {
-                        long d = (Long) y;
-                        return d == 0 ? null : (Object) ((Long) x % d);
-                    }
-                    double d = Values.toDouble(y);
-                    return d == 0 ? null : (Object) (Values.toDouble(x) % d);
-                }
-                default:
-                    throw SqlError.general("operator " + op);
-            }
+            return Values.arithmetic(op, a, b);
         }
     }
 
@@ -432,7 +407,11 @@ abstract class Expr {
                 }
                 case "ABS": {
                     Object v = Values.number(arg(0, ctx));
-                    return v == null ? null : v instanceof Long ? (Object) Math.abs((Long) v) : (Object) Math.abs((Double) v);
+                    if (v == null) {
+                        return null;
+                    }
+                    return v instanceof Long ? (Object) Math.abs((Long) v) : v instanceof java.math.BigDecimal
+                            ? (Object) ((java.math.BigDecimal) v).abs() : (Object) Math.abs((Double) v);
                 }
                 case "ROUND": {
                     Object v = Values.number(arg(0, ctx));
@@ -443,9 +422,11 @@ abstract class Expr {
                     if (v instanceof Long && d >= 0) {
                         return v;
                     }
-                    double r = new java.math.BigDecimal(Double.toString(Values.toDouble(v)))
-                            .setScale(d, java.math.RoundingMode.HALF_UP).doubleValue();
-                    return d <= 0 ? (Object) (long) r : (Object) r;
+                    java.math.BigDecimal r = Values.toDecimal(v).setScale(d, java.math.RoundingMode.HALF_UP);
+                    if (v instanceof Double) {
+                        return r.doubleValue();
+                    }
+                    return d <= 0 ? (Object) r.longValue() : (Object) r;
                 }
                 case "FLOOR": {
                     Object v = Values.number(arg(0, ctx));
@@ -542,22 +523,22 @@ abstract class Expr {
                     if (values.isEmpty()) {
                         return null;
                     }
-                    boolean ints = true;
-                    long ls = 0;
-                    double ds = 0;
+                    Object total = 0L;
+                    boolean floating = false;
                     for (Object v : values) {
                         Object n = Values.number(v);
-                        if (n instanceof Long) {
-                            ls += (Long) n;
-                        } else {
-                            ints = false;
-                        }
-                        ds += Values.toDouble(n);
+                        floating |= n instanceof Double;
+                        total = Values.arithmetic("+", total, n);
                     }
                     if (name.equals("SUM")) {
-                        return ints ? (Object) ls : (Object) ds;
+                        return total;
                     }
-                    return ds / values.size();
+                    if (floating) {
+                        return Values.toDouble(total) / values.size();
+                    }
+                    java.math.BigDecimal sum = Values.toDecimal(total);
+                    return sum.divide(java.math.BigDecimal.valueOf(values.size()), Math.max(0, sum.scale()) + Values.DIV_SCALE,
+                            java.math.RoundingMode.HALF_UP);
                 }
                 case "MIN":
                 case "MAX": {

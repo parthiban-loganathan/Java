@@ -160,6 +160,9 @@ final class TLabResultSet implements TResultSet, TResultSetMetaData {
         if (v instanceof Long) {
             return (Long) v;
         }
+        if (v instanceof java.math.BigDecimal) {
+            return ((java.math.BigDecimal) v).doubleValue();
+        }
         if (v instanceof Double) {
             return (Double) v;
         }
@@ -194,19 +197,10 @@ final class TLabResultSet implements TResultSet, TResultSetMetaData {
         if (v == null) {
             return null;
         }
-        int scale = c - 1 < result.scales.length ? result.scales[c - 1] : -1;
-        if (scale >= 0) {               // DECIMAL(p,s): always s decimals, as MySQL returns it
-            return new java.math.BigDecimal(v instanceof Double ? Double.toString((Double) v) : v.toString())
-                    .setScale(scale, java.math.RoundingMode.HALF_UP).toPlainString();
+        if (v instanceof java.math.BigDecimal) {
+            return ((java.math.BigDecimal) v).toPlainString();       // DECIMAL keeps its scale: 8.10
         }
-        if (v instanceof Double) {
-            double d = (Double) v;
-            if (d == Math.rint(d) && Math.abs(d) < 1e15) {
-                return Long.toString((long) d);
-            }
-            return Double.toString(d);
-        }
-        return v.toString();
+        return v.toString();                                         // DOUBLE as Java prints it: 12.0
     }
 
     @Override
@@ -271,6 +265,9 @@ final class TLabResultSet implements TResultSet, TResultSetMetaData {
         }
         if (v instanceof Long) {
             return java.math.BigDecimal.valueOf((Long) v);
+        }
+        if (v instanceof java.math.BigDecimal) {
+            return (java.math.BigDecimal) v;
         }
         return new java.math.BigDecimal(getString(c));
     }

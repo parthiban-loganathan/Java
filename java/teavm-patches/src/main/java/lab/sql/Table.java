@@ -97,24 +97,21 @@ final class Table {
                 return null;
             }
             if (isInteger()) {
-                Object n = Values.number(v);
                 if (v instanceof String && !isNumericText((String) v)) {
                     throw new SqlError("Incorrect integer value: '" + v + "' for column '" + name + "' at row 1",
                             1366, "HY000", SqlError.GENERAL);
                 }
-                return n instanceof Long ? n : Math.round((Double) n);
+                return Values.toLong(v);
             }
             if (isFloating()) {
                 if (v instanceof String && !isNumericText((String) v)) {
                     throw new SqlError("Incorrect " + (isDecimal() ? "decimal" : "double") + " value: '" + v
                             + "' for column '" + name + "' at row 1", 1366, "HY000", SqlError.GENERAL);
                 }
-                double d = Values.toDouble(v);
                 if (isDecimal()) {
-                    int s = scale < 0 ? 0 : scale;
-                    d = new java.math.BigDecimal(Double.toString(d)).setScale(s, java.math.RoundingMode.HALF_UP).doubleValue();
+                    return Values.toDecimal(v).setScale(scale < 0 ? 0 : scale, java.math.RoundingMode.HALF_UP);
                 }
-                return d;
+                return Values.toDouble(v);
             }
             String s = Values.text(v);
             if (length >= 0 && s.length() > length && (type.equals("VARCHAR") || type.equals("CHAR"))) {

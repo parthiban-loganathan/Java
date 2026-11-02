@@ -99,9 +99,20 @@ final class TLabStatement implements TPreparedStatement {
         return query(text, null);
     }
 
+    private static boolean isDataManipulation(String text) {
+        String t = text.trim().toUpperCase();
+        for (String w : new String[] {"INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER", "TRUNCATE", "RENAME",
+            "REPLACE", "GRANT", "REVOKE", "LOAD"}) {
+            if (t.startsWith(w) && (t.length() == w.length() || !Character.isLetterOrDigit(t.charAt(w.length())))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private TResultSet query(String text, Object[] values) throws TSQLException {
-        if (text != null && !isSelect(text)) {
-            throw new TSQLException("Statement.executeQuery() cannot issue statements that do not produce result sets.", "S1009");
+        if (text != null && isDataManipulation(text)) {     // checked by Connector/J before sending
+            throw new TSQLException("Can not issue data manipulation statements with executeQuery().", "S1009");
         }
         Result r = run(text, values);
         if (!r.query) {
@@ -129,8 +140,7 @@ final class TLabStatement implements TPreparedStatement {
 
     private long update(String text, Object[] values) throws TSQLException {
         if (text != null && isSelect(text)) {
-            throw new TSQLException("Statement.executeUpdate() or Statement.executeLargeUpdate() cannot issue statements "
-                    + "that produce result sets.", "S1009");
+            throw new TSQLException("Can not issue SELECT via executeUpdate() or executeLargeUpdate().", "S1009");
         }
         Result r = run(text, values);
         return Math.max(0, r.updateCount);
@@ -375,7 +385,7 @@ final class TLabStatement implements TPreparedStatement {
 
     @Override
     public void setBigDecimal(int parameterIndex, java.math.BigDecimal x) throws TSQLException {
-        set(parameterIndex, x == null ? null : (Object) x.doubleValue());
+        set(parameterIndex, x);
     }
 
     @Override
@@ -391,6 +401,8 @@ final class TLabStatement implements TPreparedStatement {
             set(parameterIndex, ((Number) x).longValue());
         } else if (x instanceof Float) {
             setFloat(parameterIndex, (Float) x);
+        } else if (x instanceof java.math.BigDecimal) {
+            set(parameterIndex, x);
         } else if (x instanceof Number) {
             set(parameterIndex, ((Number) x).doubleValue());
         } else if (x instanceof Boolean) {

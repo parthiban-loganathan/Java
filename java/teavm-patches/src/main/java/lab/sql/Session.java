@@ -484,7 +484,7 @@ public final class Session {
                 pos--;
                 throw error();
             }
-            return Values.number(t.text);
+            return Values.literal(t.text);
         }
 
         Result drop() {
@@ -637,19 +637,14 @@ public final class Session {
                         given[cols.get(k)] = true;
                     }
                 }
-                Long key = null;
                 for (int i = 0; i < row.length; i++) {
                     Table.Column c = table.columns.get(i);
                     if (!given[i]) {
                         row[i] = c.defaultValue;
                     }
-                    if (c.autoIncrement) {
-                        if (row[i] == null || Values.toLong(row[i]) == 0) {
-                            row[i] = table.autoIncrement;
-                        }
-                        long v = Values.toLong(row[i]);
-                        table.autoIncrement = Math.max(table.autoIncrement, v + 1);
-                        key = v;
+                    if (c.autoIncrement && (row[i] == null || Values.toLong(row[i]) == 0)) {
+                        row[i] = null;                     // numbered below, after the checks
+                        continue;
                     }
                     row[i] = c.store(row[i], table.name);
                     if (row[i] == null && c.notNull) {
@@ -657,6 +652,19 @@ public final class Session {
                             throw new SqlError("Column '" + c.name + "' cannot be null", 1048, "23000", SqlError.INTEGRITY);
                         }
                         throw new SqlError("Field '" + c.name + "' doesn't have a default value", 1364, "HY000", SqlError.GENERAL);
+                    }
+                }
+                Long key = null;
+                for (int i = 0; i < row.length; i++) {      // as InnoDB: a value is used up even if the row fails later
+                    Table.Column c = table.columns.get(i);
+                    if (c.autoIncrement) {
+                        if (row[i] == null) {
+                            row[i] = table.autoIncrement;
+                        }
+                        long v = Values.toLong(row[i]);
+                        table.autoIncrement = Math.max(table.autoIncrement, v + 1);
+                        row[i] = c.store(row[i], table.name);
+                        key = v;
                     }
                 }
                 int clash = duplicate(table, row, -1);
@@ -1100,6 +1108,10 @@ public final class Session {
                             type = 8;
                             name = "DOUBLE";
                             break;
+                        } else if (row[i] instanceof java.math.BigDecimal) {
+                            type = 3;
+                            name = "DECIMAL";
+                            break;
                         } else if (row[i] != null) {
                             break;
                         }
@@ -1263,7 +1275,7 @@ public final class Session {
             Lexer.Token t = next();
             switch (t.type) {
                 case Lexer.NUMBER:
-                    return new Expr.Literal(Values.number(t.text));
+                    return new Expr.Literal(Values.literal(t.text));
                 case Lexer.STRING:
                     return new Expr.Literal(t.text);
                 case Lexer.PARAM: {
