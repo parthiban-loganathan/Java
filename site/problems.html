@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Problem Bank</title>
+  <meta name="description" content="100 real civil, environmental and climate engineering problems for student teams to solve with Java web apps and open data.">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/lab.css">
+</head>
+<body>
+<main>
+  <h1>100 real problems to build an app for</h1>
+  <p class="muted" style="max-width:900px">Each problem names who needs the answer, a recognised engineering method with its
+    standard or reference, open datasets, the Java concepts you will practise and what the finished app should show. Pick one,
+    press <b>Claim</b> to tell the lab (a GitHub issue opens with the details filled in), build it from the starter template,
+    then <a href="submit.html">submit it</a>. Your own idea is welcome too: claim <b>OWN</b>.</p>
+  <div class="row" style="margin:10px 0 4px">
+    <a class="btn primary" id="claim-own">Claim my own idea (OWN)</a>
+    <a class="btn" href="docs.html#03-student-github-guide">New to GitHub? Start here</a>
+  </div>
+  <div class="filters">
+    <input type="text" id="q" placeholder="Search: flood, concrete, Java ArrayList, IS 456 ..." aria-label="Search problems">
+    <select id="category" aria-label="Category"><option value="">All 10 categories</option></select>
+    <select id="level" aria-label="Level"><option value="">All levels</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select>
+  </div>
+  <div id="count" class="small muted"></div>
+  <div class="grid cols-3" id="list" style="margin-top:10px"></div>
+</main>
+<script type="module">
+  import { chrome, fetchJson, escapeHtml, newIssueUrl } from './assets/js/common.js';
+  chrome('problems.html');
+  const $ = id => document.getElementById(id);
+  const doc = await fetchJson('problems/problems.json');
+  const items = doc.problems;
+  [...new Set(items.map(p => p.category))].forEach(c => $('category').insertAdjacentHTML('beforeend', `<option>${escapeHtml(c)}</option>`));
+  $('claim-own').href = newIssueUrl('project-proposal.yml', '[Proposal] OWN: ', { problem_id: 'OWN' });
+  const levelBadge = l => `<span class="badge ${l === 'Beginner' ? 'ok' : l === 'Intermediate' ? 'accent' : 'warn'}">${l}</span>`;
+  const link = d => d.url ? `<a href="${escapeHtml(d.url)}" rel="noopener">${escapeHtml(d.name)}</a>` : escapeHtml(d.name);
+  function card(p) {
+    const claim = newIssueUrl('project-proposal.yml', `[Proposal] ${p.id}: ${p.title}`, { problem_id: p.id });
+    return `<article class="card project-card" id="${p.id}">
+      <div class="meta"><span class="badge">${p.id}</span>${levelBadge(p.level)}<span class="badge">${escapeHtml(p.category)}</span></div>
+      <h3 style="margin:0">${escapeHtml(p.title)}</h3>
+      <p class="small" style="margin:0">${escapeHtml(p.problem)}</p>
+      <details class="small"><summary style="cursor:pointer;color:var(--accent)">Method, data, Java, deliverable</summary>
+        <p><b>Who benefits:</b> ${escapeHtml(p.users)}</p>
+        <p><b>Method:</b> ${escapeHtml(p.method)}</p>
+        <p><b>Open data:</b> ${p.data.map(link).join('; ')}</p>
+        <p><b>Java you will practise:</b> ${p.javaConcepts.map(escapeHtml).join(', ')}</p>
+        <p><b>The app shows:</b> ${escapeHtml(p.appShows)}</p>
+        <p><b>Stretch goal:</b> ${escapeHtml(p.stretch)}</p>
+      </details>
+      <div class="links"><a class="btn sm primary" href="${claim}" rel="noopener">Claim</a>
+        <a class="btn sm" href="submit.html?problem=${p.id}">Submit app</a></div>
+    </article>`;
+  }
+  function render() {
+    const q = $('q').value.toLowerCase(), cat = $('category').value, lv = $('level').value;
+    const list = items.filter(p => (!cat || p.category === cat) && (!lv || p.level === lv) &&
+      (!q || JSON.stringify(p).toLowerCase().includes(q)));
+    $('count').textContent = `${list.length} of ${items.length} problems`;
+    $('list').innerHTML = list.map(card).join('') || '<p class="muted">No problem matches.</p>';
+  }
+  for (const id of ['q', 'category', 'level']) $(id).addEventListener('input', render);
+  render();
+  if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+</script>
+</body>
+</html>

@@ -1,10 +1,62 @@
 [
-  {"id": "01-architecture", "title": "1. Architecture and technology choices", "file": "01-architecture.md", "repoPath": "docs/"},
-  {"id": "02-github-lab-setup", "title": "2. Setting up the lab on GitHub (maintainer)", "file": "02-github-lab-setup.md", "repoPath": "docs/"},
-  {"id": "03-student-github-guide", "title": "3. GitHub for students, step by step", "file": "03-student-github-guide.md", "repoPath": "docs/"},
-  {"id": "04-submit-a-project", "title": "4. Build and submit your team project", "file": "04-submit-a-project.md", "repoPath": "docs/"},
-  {"id": "05-hydrology-method", "title": "5. Catchment simulator: method and limitations", "file": "05-hydrology-method.md", "repoPath": "docs/"},
-  {"id": "06-data-sources", "title": "6. Data sources and licences", "file": "06-data-sources.md", "repoPath": "docs/"},
-  {"id": "07-android-app", "title": "7. Android app from the same Java", "file": "07-android-app.md", "repoPath": "docs/"},
-  {"id": "08-teacher-guide", "title": "8. Teacher guide: 12 teams, timeline, assessment", "file": "08-teacher-guide.md", "repoPath": "docs/"}
+  {
+    "id": "00-start-here",
+    "title": "0. Start here (teacher): step-by-step for GitHub beginners",
+    "file": "00-start-here.md",
+    "repoPath": "docs/"
+  },
+  {
+    "id": "01-architecture",
+    "title": "1. Architecture and technology choices",
+    "file": "01-architecture.md",
+    "repoPath": "docs/"
+  },
+  {
+    "id": "02-github-lab-setup",
+    "title": "2. Setting up the lab on GitHub (maintainer)",
+    "file": "02-github-lab-setup.md",
+    "repoPath": "docs/"
+  },
+  {
+    "id": "03-student-github-guide",
+    "title": "3. GitHub for students, step by step",
+    "file": "03-student-github-guide.md",
+    "repoPath": "docs/"
+  },
+  {
+    "id": "04-submit-a-project",
+    "title": "4. Build and submit your team project",
+    "file": "04-submit-a-project.md",
+    "repoPath": "docs/"
+  },
+  {
+    "id": "05-hydrology-method",
+    "title": "5. Catchment simulator: method and limitations",
+    "file": "05-hydrology-method.md",
+    "repoPath": "docs/"
+  },
+  {
+    "id": "06-data-sources",
+    "title": "6. Data sources and licences",
+    "file": "06-data-sources.md",
+    "repoPath": "docs/"
+  },
+  {
+    "id": "07-android-app",
+    "title": "7. Android app from the same Java",
+    "file": "07-android-app.md",
+    "repoPath": "docs/"
+  },
+  {
+    "id": "08-teacher-guide",
+    "title": "8. Teacher guide: 12 teams, timeline, assessment",
+    "file": "08-teacher-guide.md",
+    "repoPath": "docs/"
+  },
+  {
+    "id": "09-teaching-plan",
+    "title": "9. Teaching and demonstration plan",
+    "file": "09-teaching-plan.md",
+    "repoPath": "docs/"
+  }
 ]

@@ -8,6 +8,7 @@ import json
 import re
 import sys
 
+
 def check(value, schema, path, errors):
     t = schema.get("type")
     types = {"object": dict, "array": list, "string": str}
@@ -39,18 +40,26 @@ def check(value, schema, path, errors):
         if "enum" in schema and value not in schema["enum"]:
             errors.append(f"{path}: '{value}' is not one of {schema['enum']}")
 
+
+def validate(data, schema):
+    """Returns a list of error messages (empty when valid)."""
+    errors = []
+    check(data, schema, "$", errors)
+    ids = [p.get("id") for p in data.get("projects", []) if isinstance(p, dict)]
+    for dup in sorted({i for i in ids if ids.count(i) > 1}):
+        errors.append(f"$.projects: duplicate id '{dup}'")
+    return errors
+
+
 def main(data_path="projects/projects.json", schema_path="projects/projects.schema.json"):
     data = json.load(open(data_path, encoding="utf-8"))
     schema = json.load(open(schema_path, encoding="utf-8"))
-    errors = []
-    check(data, schema, "$", errors)
-    ids = [p.get("id") for p in data.get("projects", [])]
-    for dup in sorted({i for i in ids if ids.count(i) > 1}):
-        errors.append(f"$.projects: duplicate id '{dup}'")
+    errors = validate(data, schema)
     for e in errors:
         print("ERROR", e)
-    print(f"{len(ids)} projects checked, {len(errors)} errors")
+    print(f"{len(data.get('projects', []))} projects checked, {len(errors)} errors")
     return 1 if errors else 0
+
 
 if __name__ == "__main__":
     sys.exit(main(*sys.argv[1:]))

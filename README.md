@@ -4,6 +4,9 @@ An open, student-driven laboratory where first-year civil engineering students a
 Java by building working applications for real engineering problems, with open data, free tools and
 public source code.
 
+**New to GitHub? Read [`docs/00-start-here.md`](docs/00-start-here.md) first** (click-by-click set-up), then
+[`docs/09-teaching-plan.md`](docs/09-teaching-plan.md) (what to teach and demonstrate each week).
+
 **Website (GitHub Pages):** `https://parthiban-loganathan.github.io/Java/` once Pages is enabled
 (Settings → Pages → Source: GitHub Actions; the site is deployed from `main`).
 
@@ -13,8 +16,9 @@ public source code.
 | 3D catchment simulator | Hourly rainfall-runoff for a 38.65 km² hill catchment beside VIT: Copernicus DEM, ESA WorldCover, ERA5 rainfall of Cyclone Fengal; Java does depression filling, D8, delineation, Kirpich Tc, SCS Curve Number, SCS unit hydrograph and time-area routing; Three.js animates it | [`java/civiltech-core`](java/civiltech-core), page `catchment.html` |
 | CivilTech Innovation Starter | The one template every team copies: Java module + tests, CSV upload, Chart.js, Leaflet, Three.js, results table, Pages deployment | [`starter-template/`](starter-template/) |
 | Android app | The same Java core compiled into a native Android app (APK built by GitHub Actions) | [`android-app/`](android-app/) |
+| Problem bank | 100 real civil, environmental and climate problems with methods, open data and Java concepts; claim and submit from the website | [`problems/`](problems/), pages `problems.html`, `submit.html` |
 | Project directory | Student projects, validated by a schema, shown on the website | [`projects/`](projects/) |
-| Guides | Architecture, GitHub set-up, student guide, submission, method, data, Android, teacher guide | [`docs/`](docs/) |
+| Guides | Start here, architecture, GitHub set-up, student guide, submission, method, data, Android, teacher guide, teaching plan | [`docs/`](docs/) |
 
 ## Quick start
 

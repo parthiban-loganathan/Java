@@ -22,9 +22,25 @@ java "$ROOT/tools/BuildCourse.java" --course "$ROOT/course" --site "$OUT/course"
 mkdir -p "$OUT/docs" "$OUT/projects"
 cp "$ROOT"/docs/*.md "$ROOT/docs/index.json" "$OUT/docs/"
 cp "$ROOT/projects/projects.json" "$ROOT/projects/projects.schema.json" "$OUT/projects/"
+mkdir -p "$OUT/problems"
+cp "$ROOT/problems/problems.json" "$OUT/problems/"
 
 echo "== Starter template demo"
 bash "$ROOT/starter-template/build.sh" "$OUT/starter"
+
+echo "== Starter template ZIP (for creating the template repository through the browser)"
+mkdir -p "$OUT/downloads"
+python3 - "$ROOT/starter-template" "$OUT/downloads/civiltech-innovation-starter.zip" <<'PY'
+import os, sys, zipfile
+src, dst = sys.argv[1], sys.argv[2]
+skip = {"target", "dist"}
+with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as z:
+    for root, dirs, files in os.walk(src):
+        dirs[:] = sorted(d for d in dirs if d not in skip)
+        for f in sorted(files):
+            full = os.path.join(root, f)
+            z.write(full, os.path.join("civiltech-innovation-starter", os.path.relpath(full, src)))
+PY
 
 touch "$OUT/.nojekyll"
 echo "Site ready: $OUT ($(du -sh "$OUT" | cut -f1))"

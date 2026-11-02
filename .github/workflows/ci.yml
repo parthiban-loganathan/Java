@@ -22,8 +22,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate project directory
-        run: python3 tools/validate_projects.py
+      - name: Validate project directory and problem bank
+        run: |
+          python3 tools/validate_projects.py
+          python3 tools/render_problem_bank.py --check
       - name: Build site (core unit tests, TeaVM, course files, starter template)
         run: bash tools/build-site.sh build/site
       - name: Course programs on the JDK (expected outputs)

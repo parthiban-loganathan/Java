@@ -1,8 +1,21 @@
-name: Project proposal
-description: Propose a team project for the Civil Engineering Innovation Lab
+name: Project proposal (claim a problem)
+description: Tell the lab which problem your team will solve, before you start building
 title: "[Proposal] "
 labels: ["proposal"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Pick a problem from the lab's **Problem bank** (P001-P100) or propose your own (write OWN).
+        A maintainer replies within a week; you can start building right away.
+  - type: input
+    id: problem_id
+    attributes:
+      label: Problem ID
+      description: P001 to P100 from the problem bank, or OWN for your own idea
+      placeholder: P013
+    validations:
+      required: true
   - type: input
     id: team
     attributes:
@@ -10,35 +23,36 @@ body:
       placeholder: Team 7, Batch 2026
     validations:
       required: true
+  - type: input
+    id: members
+    attributes:
+      label: GitHub usernames of all members
+      placeholder: user-one, user-two, user-three, user-four, user-five
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
-      label: Problem
-      description: Who has the problem, where, and what decision will your application support?
+      label: Problem in your own words
+      description: Who has the problem, where, and what decision your app will support.
     validations:
       required: true
   - type: textarea
     id: data
     attributes:
-      label: Open data
-      description: Dataset names, links and licences you plan to use.
+      label: Open data you will use
+      description: Dataset names, links and licences.
     validations:
       required: true
   - type: textarea
     id: method
     attributes:
       label: Engineering method
-      description: Formulas, standards (IS codes, NRCS, ...) or algorithms, with references.
-    validations:
-      required: true
-  - type: textarea
-    id: java
-    attributes:
-      label: What the Java module will compute
+      description: Formulas, IS codes or algorithms, with references.
     validations:
       required: true
   - type: textarea
     id: roles
     attributes:
       label: Team roles
-      description: GitHub usernames and the role of each member.
+      description: Who does the Java calculation, interface, charts/map, data and documentation, testing and presentation.

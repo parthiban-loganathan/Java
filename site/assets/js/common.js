@@ -2,11 +2,19 @@
 export const REPO_URL = 'https://github.com/parthiban-loganathan/Java';
 export const CODESPACES_URL = 'https://codespaces.new/parthiban-loganathan/Java';
 
+/** URL of a new GitHub issue from an issue form, with fields pre-filled (field ids as query keys). */
+export function newIssueUrl(template, title, fields = {}) {
+  const q = new URLSearchParams({ template, title, ...fields });
+  return `${REPO_URL}/issues/new?${q.toString()}`;
+}
+
 const NAV = [
   ['index.html', 'Home'],
   ['learn.html', 'Learn Java'],
   ['catchment.html', 'Catchment simulator'],
   ['starter/index.html', 'Starter template'],
+  ['problems.html', '100 Problems'],
+  ['submit.html', 'Submit'],
   ['projects.html', 'Projects'],
   ['docs.html', 'Guides'],
 ];

@@ -1,0 +1,2607 @@
+{
+ "title": "Civil Engineering Innovation Lab - problem bank",
+ "description": "100 real civil, environmental and climate problems for student teams. Each lists a method with its standard or reference, open data sources, Java concepts practised, what the app should show and a stretch goal.",
+ "problems": [
+  {
+   "id": "P001",
+   "title": "Design rainfall IDF curves for Vellore",
+   "category": "Water resources and hydrology",
+   "level": "Intermediate",
+   "problem": "Engineers designing drains and culverts in Vellore need rainfall intensity for durations from 15 minutes to 24 hours and return periods of 2 to 100 years, but most use values copied from distant cities.",
+   "users": "Municipal engineers, drainage designers",
+   "method": "Annual maximum daily rainfall series; Gumbel (EV1) frequency analysis by the method of moments; short-duration depths by the IMD empirical one-third power reduction P(t) = P24 (t/24)^(1/3).",
+   "data": [
+    {
+     "name": "IMD gridded rainfall 0.25 deg (daily, 1901-present)",
+     "url": "https://www.imdpune.gov.in/"
+    },
+    {
+     "name": "CHIRPS daily rainfall 0.05 deg",
+     "url": "https://www.chc.ucsb.edu/data/chirps"
+    },
+    {
+     "name": "Open-Meteo historical and forecast weather API (CC BY 4.0)",
+     "url": "https://open-meteo.com/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "sorting",
+    "methods",
+    "Math functions"
+   ],
+   "appShows": "IDF table and log-log IDF curves, intensity for a chosen duration and return period, CSV export.",
+   "stretch": "Compare Gumbel with log-Pearson III and show confidence intervals."
+  },
+  {
+   "id": "P002",
+   "title": "Village tank storage by the sequent peak method",
+   "category": "Water resources and hydrology",
+   "level": "Intermediate",
+   "problem": "Tamil Nadu's irrigation tanks (eris) silt up and fail in dry years. How much storage does a tank need to meet a given irrigation demand through a recorded dry spell?",
+   "users": "Water user associations, PWD engineers",
+   "method": "Monthly inflow from catchment rainfall (runoff coefficient or SCS-CN) and the sequent peak algorithm (Thomas, 1963) for required storage; mass curve (Rippl) for comparison.",
+   "data": [
+    {
+     "name": "CHIRPS daily rainfall 0.05 deg",
+     "url": "https://www.chc.ucsb.edu/data/chirps"
+    },
+    {
+     "name": "IMD gridded rainfall 0.25 deg (daily, 1901-present)",
+     "url": "https://www.imdpune.gov.in/"
+    },
+    {
+     "name": "JRC Global Surface Water (1984-present)",
+     "url": "https://global-surface-water.appspot.com/"
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "loops",
+    "arrays",
+    "classes"
+   ],
+   "appShows": "Inflow and demand charts, mass curve, required storage and reliability.",
+   "stretch": "Add evaporation losses from NASA POWER and siltation scenarios."
+  },
+  {
+   "id": "P003",
+   "title": "Drought monitor with the Standardized Precipitation Index",
+   "category": "Water resources and hydrology",
+   "level": "Advanced",
+   "problem": "Districts of Tamil Nadu declare drought late. A simple SPI dashboard could flag developing drought months earlier.",
+   "users": "Agriculture department, students of climate risk",
+   "method": "SPI (McKee, Doesken and Kleist, 1993): fit a gamma distribution to 3, 6 and 12-month rainfall totals and transform to a standard normal variate; drought classes from SPI thresholds.",
+   "data": [
+    {
+     "name": "CHIRPS daily rainfall 0.05 deg",
+     "url": "https://www.chc.ucsb.edu/data/chirps"
+    },
+    {
+     "name": "IMD gridded rainfall 0.25 deg (daily, 1901-present)",
+     "url": "https://www.imdpune.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "methods",
+    "numerical functions",
+    "exceptions"
+   ],
+   "appShows": "SPI time series, current drought class map for selected grid points.",
+   "stretch": "Compare SPI with soil moisture from ERA5-Land."
+  },
+  {
+   "id": "P004",
+   "title": "Reference evapotranspiration calculator (FAO-56 Penman-Monteith)",
+   "category": "Water resources and hydrology",
+   "level": "Beginner",
+   "problem": "Farmers and irrigation planners need daily crop water loss, but ET0 needs many weather variables and a long formula.",
+   "users": "Agricultural engineers, students",
+   "method": "FAO-56 Penman-Monteith reference evapotranspiration (Allen et al., 1998), with the Hargreaves equation as a check when only temperature is available.",
+   "data": [
+    {
+     "name": "NASA POWER daily meteorology and solar radiation",
+     "url": "https://power.larc.nasa.gov/"
+    },
+    {
+     "name": "Open-Meteo historical and forecast weather API (CC BY 4.0)",
+     "url": "https://open-meteo.com/"
+    },
+    {
+     "name": "FAO Irrigation and Drainage Paper 56 (crop evapotranspiration)",
+     "url": "https://www.fao.org/3/x0490e/x0490e00.htm"
+    }
+   ],
+   "javaConcepts": [
+    "variables",
+    "methods",
+    "Math functions",
+    "classes"
+   ],
+   "appShows": "Daily and monthly ET0 chart, comparison of methods, table of intermediate terms.",
+   "stretch": "Add a crop coefficient curve to get crop evapotranspiration."
+  },
+  {
+   "id": "P005",
+   "title": "Irrigation water requirement for paddy and sugarcane",
+   "category": "Water resources and hydrology",
+   "level": "Intermediate",
+   "problem": "Vellore district grows paddy and sugarcane with groundwater. How much irrigation water does each crop need per season, after rainfall?",
+   "users": "Farmers, irrigation officers",
+   "method": "Crop evapotranspiration ETc = Kc x ET0 with FAO-56 crop coefficients and growth stages; effective rainfall by the USDA SCS method used in FAO CROPWAT; field application efficiency.",
+   "data": [
+    {
+     "name": "NASA POWER daily meteorology and solar radiation",
+     "url": "https://power.larc.nasa.gov/"
+    },
+    {
+     "name": "FAO Irrigation and Drainage Paper 56 (crop evapotranspiration)",
+     "url": "https://www.fao.org/3/x0490e/x0490e00.htm"
+    },
+    {
+     "name": "CHIRPS daily rainfall 0.05 deg",
+     "url": "https://www.chc.ucsb.edu/data/chirps"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "loops",
+    "classes",
+    "enums"
+   ],
+   "appShows": "Ten-day irrigation schedule, seasonal volume per hectare, rainfall contribution.",
+   "stretch": "Compare normal and drought-year seasons."
+  },
+  {
+   "id": "P006",
+   "title": "Groundwater level trend analyser",
+   "category": "Water resources and hydrology",
+   "level": "Intermediate",
+   "problem": "Groundwater levels in Vellore are falling in some wells and recovering in others. Which trends are statistically significant?",
+   "users": "CGWB analysts, local bodies",
+   "method": "Mann-Kendall trend test and Sen's slope estimator on pre- and post-monsoon water levels.",
+   "data": [
+    {
+     "name": "India-WRIS water resources information system",
+     "url": "https://indiawris.gov.in/"
+    },
+    {
+     "name": "Central Ground Water Board reports and manuals",
+     "url": "https://cgwb.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "ArrayList",
+    "sorting",
+    "methods"
+   ],
+   "appShows": "Map of wells coloured by trend direction and significance, hydrograph per well.",
+   "stretch": "Relate trends to rainfall and land-use change."
+  },
+  {
+   "id": "P007",
+   "title": "Pumping test analysis for a campus borewell",
+   "category": "Water resources and hydrology",
+   "level": "Intermediate",
+   "problem": "Before installing a larger pump, the hostel needs the aquifer's transmissivity and storativity from a pumping test.",
+   "users": "Campus estate office, hydrogeology students",
+   "method": "Cooper-Jacob straight-line method and Theis curve matching for drawdown versus time; safe yield estimate.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "Central Ground Water Board reports and manuals",
+     "url": "https://cgwb.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "linear regression",
+    "methods"
+   ],
+   "appShows": "Drawdown plot with fitted line, T and S values, predicted drawdown for a new pumping rate.",
+   "stretch": "Add recovery test analysis (Theis recovery)."
+  },
+  {
+   "id": "P008",
+   "title": "Synthetic unit hydrographs from a DEM",
+   "category": "Water resources and hydrology",
+   "level": "Advanced",
+   "problem": "Most small catchments in India are ungauged. How different are the Snyder and SCS synthetic unit hydrographs for the same catchment?",
+   "users": "Hydrology students, flood engineers",
+   "method": "Catchment length, slope and area from the DEM; Snyder (1938) unit hydrograph and SCS dimensionless unit hydrograph (NEH-630 Ch. 16).",
+   "data": [
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "HydroSHEDS river networks and basins",
+     "url": "https://www.hydrosheds.org/"
+    },
+    {
+     "name": "VIT Innovation Lab Vellore catchment dataset (in this repository)",
+     "url": "https://github.com/parthiban-loganathan/Java/tree/main/site/data/catchment"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "interfaces",
+    "arrays"
+   ],
+   "appShows": "Overlaid unit hydrographs, peak and time-to-peak comparison, flood hydrograph for a design storm.",
+   "stretch": "Add the Clark unit hydrograph and compare."
+  },
+  {
+   "id": "P009",
+   "title": "Flood frequency analysis of annual peak discharges",
+   "category": "Water resources and hydrology",
+   "level": "Intermediate",
+   "problem": "Bridge and levee design needs the 100-year flood. With a short discharge record, which distribution and confidence bands are defensible?",
+   "users": "Bridge designers, water resources engineers",
+   "method": "Annual maximum series; Gumbel and log-Pearson type III (US Bulletin 17C) by moments; plotting positions (Weibull).",
+   "data": [
+    {
+     "name": "India-WRIS water resources information system",
+     "url": "https://indiawris.gov.in/"
+    },
+    {
+     "name": "GloFAS global flood awareness system river discharge",
+     "url": "https://global-flood.emergency.copernicus.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "sorting",
+    "methods",
+    "exceptions"
+   ],
+   "appShows": "Probability plot, fitted curves, design floods for 10 to 500 years.",
+   "stretch": "Show how adding recent extreme years changes the 100-year flood."
+  },
+  {
+   "id": "P010",
+   "title": "Tank cascade water balance",
+   "category": "Water resources and hydrology",
+   "level": "Advanced",
+   "problem": "Tanks in Tamil Nadu are linked in cascades: spill from one feeds the next. How does a heavy storm propagate down a cascade?",
+   "users": "Tank rehabilitation planners",
+   "method": "Daily water balance per tank (inflow, rainfall, evaporation, irrigation draw, seepage, spill) with spill routed to the downstream tank; catchments from the DEM.",
+   "data": [
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "JRC Global Surface Water (1984-present)",
+     "url": "https://global-surface-water.appspot.com/"
+    },
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "ERA5 hourly reanalysis (Copernicus Climate Data Store)",
+     "url": "https://cds.climate.copernicus.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "objects linked in a list",
+    "loops"
+   ],
+   "appShows": "Cascade diagram, storage time series of every tank, spill events.",
+   "stretch": "Simulate desilting or breach of one tank."
+  },
+  {
+   "id": "P011",
+   "title": "Campus storm drain sizing",
+   "category": "Urban flooding and drainage",
+   "level": "Beginner",
+   "problem": "Several roads on campus flood after 40 mm/h rain. Are the existing drains big enough?",
+   "users": "Campus estate office",
+   "method": "Rational method Q = C i A / 360 with Kirpich time of concentration and IDF intensity; drain capacity by Manning's equation (CPHEEO Manual on Storm Water Drainage Systems, 2019).",
+   "data": [
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "CPHEEO manuals (water supply, sewerage, storm water, solid waste)",
+     "url": "https://cpheeo.gov.in/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "variables",
+    "methods",
+    "classes"
+   ],
+   "appShows": "Table of drain segments with design flow, capacity and pass/fail; map of under-capacity drains.",
+   "stretch": "Suggest the required drain size for every failing segment."
+  },
+  {
+   "id": "P012",
+   "title": "Street flood hotspot mapper",
+   "category": "Urban flooding and drainage",
+   "level": "Intermediate",
+   "problem": "Which streets in Vellore sit in depressions where water ponds?",
+   "users": "Municipal corporation, residents",
+   "method": "Depression depth = filled DEM minus original DEM (Priority-Flood); ponding volume per depression; intersect with OpenStreetMap roads.",
+   "data": [
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "VIT Innovation Lab Vellore catchment dataset (in this repository)",
+     "url": "https://github.com/parthiban-loganathan/Java/tree/main/site/data/catchment"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "priority queue",
+    "classes"
+   ],
+   "appShows": "Map of depressions ranked by volume and road length affected.",
+   "stretch": "Use a finer DEM or survey levels for a single ward."
+  },
+  {
+   "id": "P013",
+   "title": "Rooftop rainwater harvesting potential",
+   "category": "Urban flooding and drainage",
+   "level": "Beginner",
+   "problem": "How much rainwater could each hostel or house roof collect in a year, and how big should the tank be?",
+   "users": "Households, hostel wardens",
+   "method": "Harvestable volume = rainfall x roof area x runoff coefficient (IS 15797:2008 guidelines); tank size by monthly mass balance.",
+   "data": [
+    {
+     "name": "Google Open Buildings footprints (CC BY 4.0 / ODbL)",
+     "url": "https://sites.research.google/open-buildings/"
+    },
+    {
+     "name": "IMD gridded rainfall 0.25 deg (daily, 1901-present)",
+     "url": "https://www.imdpune.gov.in/"
+    },
+    {
+     "name": "Open-Meteo historical and forecast weather API (CC BY 4.0)",
+     "url": "https://open-meteo.com/"
+    }
+   ],
+   "javaConcepts": [
+    "variables",
+    "arrays",
+    "methods"
+   ],
+   "appShows": "Roof map with annual harvestable volume, monthly supply-demand chart, tank size.",
+   "stretch": "Add first-flush diversion and cost per litre."
+  },
+  {
+   "id": "P014",
+   "title": "Recharge pit and recharge well sizing",
+   "category": "Urban flooding and drainage",
+   "level": "Beginner",
+   "problem": "Rooftop water can recharge the aquifer instead of flooding streets. How many recharge pits does a building need?",
+   "users": "Builders, local body approval engineers",
+   "method": "Recharge structure design from the CGWB Manual on Artificial Recharge of Ground Water (2007): runoff volume, infiltration rate, pit volume.",
+   "data": [
+    {
+     "name": "Central Ground Water Board reports and manuals",
+     "url": "https://cgwb.gov.in/"
+    },
+    {
+     "name": "IMD gridded rainfall 0.25 deg (daily, 1901-present)",
+     "url": "https://www.imdpune.gov.in/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "methods",
+    "if-else",
+    "classes"
+   ],
+   "appShows": "Required pit count and dimensions for a design storm, with a sketch.",
+   "stretch": "Include measured infiltration test results."
+  },
+  {
+   "id": "P015",
+   "title": "Green roof and pervious pavement runoff reduction",
+   "category": "Urban flooding and drainage",
+   "level": "Intermediate",
+   "problem": "How much runoff would be avoided if parking lots were made pervious and roofs green?",
+   "users": "Urban planners, architects",
+   "method": "SCS Curve Number runoff before and after land-cover change for design storms; area-weighted CN.",
+   "data": [
+    {
+     "name": "ESA WorldCover 10 m land cover (CC BY 4.0)",
+     "url": "https://esa-worldcover.org/"
+    },
+    {
+     "name": "Google Open Buildings footprints (CC BY 4.0 / ODbL)",
+     "url": "https://sites.research.google/open-buildings/"
+    },
+    {
+     "name": "Open-Meteo historical and forecast weather API (CC BY 4.0)",
+     "url": "https://open-meteo.com/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "maps",
+    "methods"
+   ],
+   "appShows": "Before/after runoff volume and peak comparison, map of converted areas.",
+   "stretch": "Add cost per cubic metre of runoff avoided."
+  },
+  {
+   "id": "P016",
+   "title": "Road culvert capacity check",
+   "category": "Urban flooding and drainage",
+   "level": "Intermediate",
+   "problem": "Many rural road culverts overtop every monsoon. Which ones are undersized?",
+   "users": "Highway and panchayat engineers",
+   "method": "Design discharge by the Rational method; culvert capacity under inlet and outlet control (FHWA HDS-5, Hydraulic Design of Highway Culverts).",
+   "data": [
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "IMD gridded rainfall 0.25 deg (daily, 1901-present)",
+     "url": "https://www.imdpune.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "methods",
+    "exceptions"
+   ],
+   "appShows": "Culvert inventory map with capacity ratio, headwater depth.",
+   "stretch": "Prioritise replacement by traffic and detour length."
+  },
+  {
+   "id": "P017",
+   "title": "Rainfall-forecast flood alert for campus",
+   "category": "Urban flooding and drainage",
+   "level": "Intermediate",
+   "problem": "Can a simple dashboard warn students hours before roads flood?",
+   "users": "Students, security office",
+   "method": "Hourly forecast rainfall from Open-Meteo compared with the drain capacity threshold from the drain sizing problem; alert levels.",
+   "data": [
+    {
+     "name": "Open-Meteo historical and forecast weather API (CC BY 4.0)",
+     "url": "https://open-meteo.com/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "web APIs (JSON)",
+    "if-else",
+    "methods"
+   ],
+   "appShows": "Live forecast chart with alert colours, list of at-risk roads.",
+   "stretch": "Log forecasts and check them against observed flooding."
+  },
+  {
+   "id": "P018",
+   "title": "Detention pond sizing",
+   "category": "Urban flooding and drainage",
+   "level": "Advanced",
+   "problem": "A new housing layout must not increase peak runoff. How large must its detention pond be?",
+   "users": "Developers, approving authorities",
+   "method": "Pre- and post-development hydrographs (SCS unit hydrograph); storage-indication (modified Puls) routing through a pond with an orifice and weir outlet.",
+   "data": [
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "ESA WorldCover 10 m land cover (CC BY 4.0)",
+     "url": "https://esa-worldcover.org/"
+    },
+    {
+     "name": "VIT Innovation Lab Vellore catchment dataset (in this repository)",
+     "url": "https://github.com/parthiban-loganathan/Java/tree/main/site/data/catchment"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "numerical iteration",
+    "arrays"
+   ],
+   "appShows": "Inflow/outflow hydrographs, pond stage, required storage.",
+   "stretch": "Optimise outlet size for several return periods."
+  },
+  {
+   "id": "P019",
+   "title": "Impervious surface growth and its runoff",
+   "category": "Urban flooding and drainage",
+   "level": "Intermediate",
+   "problem": "How fast is Vellore paving over its land, and what does that do to storm runoff?",
+   "users": "Urban planners",
+   "method": "Land-cover change between years from Dynamic World; runoff change with the SCS-CN method for a fixed design storm.",
+   "data": [
+    {
+     "name": "Dynamic World near-real-time 10 m land cover (CC BY 4.0)",
+     "url": "https://dynamicworld.app/"
+    },
+    {
+     "name": "ESA WorldCover 10 m land cover (CC BY 4.0)",
+     "url": "https://esa-worldcover.org/"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "maps",
+    "methods"
+   ],
+   "appShows": "Change map, built-up area trend, runoff increase per ward.",
+   "stretch": "Project impervious area to 2035 with a linear trend."
+  },
+  {
+   "id": "P020",
+   "title": "Waterlogging report map",
+   "category": "Urban flooding and drainage",
+   "level": "Beginner",
+   "problem": "Residents notice waterlogging first. A shared map of reports with photos and depth could guide drain maintenance.",
+   "users": "Residents, municipal engineers",
+   "method": "Structured reports (location, depth class, duration, photo link) validated in Java and aggregated per grid cell.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "ArrayList",
+    "validation with exceptions"
+   ],
+   "appShows": "Map of reports, counts per area, most frequent locations.",
+   "stretch": "Store reports as files submitted by pull request."
+  },
+  {
+   "id": "P021",
+   "title": "Water demand projection for a city",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Beginner",
+   "problem": "How much water will Vellore need in 2041?",
+   "users": "Water supply engineers",
+   "method": "Population forecasting by arithmetic, geometric and incremental-increase methods (CPHEEO Manual on Water Supply and Treatment, 1999) and per-capita demand.",
+   "data": [
+    {
+     "name": "Census of India tables",
+     "url": "https://censusindia.gov.in/"
+    },
+    {
+     "name": "CPHEEO manuals (water supply, sewerage, storm water, solid waste)",
+     "url": "https://cpheeo.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "methods",
+    "loops"
+   ],
+   "appShows": "Population and demand forecasts by method, chart, chosen design value.",
+   "stretch": "Add floating population and industrial demand."
+  },
+  {
+   "id": "P022",
+   "title": "Water distribution network analysis (Hardy Cross)",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Advanced",
+   "problem": "Do all houses in a looped network get enough pressure at peak hour?",
+   "users": "Water supply engineers",
+   "method": "Hardy Cross method for loop flows with Hazen-Williams head loss; node pressures.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "graphs",
+    "iteration until convergence"
+   ],
+   "appShows": "Network map with pipe flows and node pressures, iterations table.",
+   "stretch": "Compare with a Newton-Raphson solver."
+  },
+  {
+   "id": "P023",
+   "title": "Overhead tank sizing from a demand pattern",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Beginner",
+   "problem": "Pumping runs only some hours a day. How big must the overhead tank be?",
+   "users": "Hostel and apartment engineers",
+   "method": "Mass curve of cumulative supply and cumulative hourly demand (CPHEEO); storage = max surplus + max deficit.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "CPHEEO manuals (water supply, sewerage, storm water, solid waste)",
+     "url": "https://cpheeo.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "loops",
+    "max/min"
+   ],
+   "appShows": "Hourly demand chart, mass curve, required capacity.",
+   "stretch": "Test different pumping schedules."
+  },
+  {
+   "id": "P024",
+   "title": "Drinking water quality checker (IS 10500)",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Beginner",
+   "problem": "Is the groundwater from a borewell fit to drink?",
+   "users": "Households, health inspectors",
+   "method": "Compare parameters with IS 10500:2012 acceptable and permissible limits; Water Quality Index by the weighted arithmetic method.",
+   "data": [
+    {
+     "name": "India-WRIS water resources information system",
+     "url": "https://indiawris.gov.in/"
+    },
+    {
+     "name": "Central Ground Water Board reports and manuals",
+     "url": "https://cgwb.gov.in/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "maps",
+    "if-else",
+    "classes"
+   ],
+   "appShows": "Parameter table with pass/fail, WQI and class, map of sampled wells.",
+   "stretch": "Add a Piper diagram for water type."
+  },
+  {
+   "id": "P025",
+   "title": "Septic tank and soak pit design",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Beginner",
+   "problem": "Many households build septic tanks by thumb rule. What size is correct?",
+   "users": "Masons, homeowners, panchayats",
+   "method": "IS 2470 (Part 1 and Part 2):1985 design of septic tanks and subsurface absorption systems.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "variables",
+    "if-else",
+    "methods"
+   ],
+   "appShows": "Tank dimensions, desludging interval, soak pit size with a sketch.",
+   "stretch": "Add groundwater distance checks."
+  },
+  {
+   "id": "P026",
+   "title": "Activated sludge plant design",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Advanced",
+   "problem": "Size the aeration tank and blower for a campus sewage treatment plant.",
+   "users": "Environmental engineers",
+   "method": "Completely mixed activated sludge design (Metcalf and Eddy; CPHEEO Manual on Sewerage and Sewage Treatment Systems, 2013): SRT, F/M, volume, oxygen demand.",
+   "data": [
+    {
+     "name": "CPHEEO manuals (water supply, sewerage, storm water, solid waste)",
+     "url": "https://cpheeo.gov.in/"
+    },
+    {
+     "name": "Central Pollution Control Board data and standards",
+     "url": "https://cpcb.nic.in/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "methods",
+    "validation"
+   ],
+   "appShows": "Design summary, sensitivity to temperature and load.",
+   "stretch": "Compare with an SBR design."
+  },
+  {
+   "id": "P027",
+   "title": "River dissolved-oxygen sag below an outfall",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Intermediate",
+   "problem": "Will treated effluent drop the river's dissolved oxygen below the bathing standard?",
+   "users": "Pollution control board, students",
+   "method": "Streeter-Phelps equation with deoxygenation and reaeration (O'Connor-Dobbins) coefficients.",
+   "data": [
+    {
+     "name": "Central Pollution Control Board data and standards",
+     "url": "https://cpcb.nic.in/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "methods",
+    "Math.exp",
+    "loops"
+   ],
+   "appShows": "DO sag curve, critical distance and minimum DO.",
+   "stretch": "Add multiple outfalls."
+  },
+  {
+   "id": "P028",
+   "title": "Sewer line design along streets",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Intermediate",
+   "problem": "Lay out and size a gravity sewer for a ward, keeping self-cleansing velocity.",
+   "users": "Municipal engineers",
+   "method": "Peak sewage flow, Manning's equation for partially full pipes, minimum velocity and slope (CPHEEO, 2013); ground levels from the DEM.",
+   "data": [
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "CPHEEO manuals (water supply, sewerage, storm water, solid waste)",
+     "url": "https://cpheeo.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "graphs",
+    "classes",
+    "loops"
+   ],
+   "appShows": "Sewer profile, pipe sizes, depths of manholes.",
+   "stretch": "Minimise excavation depth."
+  },
+  {
+   "id": "P029",
+   "title": "Non-revenue water and leakage estimator",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Intermediate",
+   "problem": "How much water is lost to leaks in a campus network?",
+   "users": "Estate office, utilities",
+   "method": "IWA water balance; minimum night flow analysis of metered district inflows.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "ArrayList",
+    "statistics",
+    "time series"
+   ],
+   "appShows": "Water balance diagram, night-flow chart, estimated leakage.",
+   "stretch": "Flag zones with rising night flow."
+  },
+  {
+   "id": "P030",
+   "title": "Greywater reuse system for hostels",
+   "category": "Water supply, sanitation and wastewater",
+   "level": "Beginner",
+   "problem": "Could bathroom greywater supply hostel toilet flushing and gardens?",
+   "users": "Hostel administration",
+   "method": "Daily greywater generation and reuse demand balance; treatment unit sizing for a sand filter.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "CPHEEO manuals (water supply, sewerage, storm water, solid waste)",
+     "url": "https://cpheeo.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "methods",
+    "if-else"
+   ],
+   "appShows": "Daily balance, storage size, freshwater saved per year.",
+   "stretch": "Add cost and payback period."
+  },
+  {
+   "id": "P031",
+   "title": "Air Quality Index calculator (CPCB National AQI)",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Beginner",
+   "problem": "Pollutant concentrations mean little to the public. Convert them into the National AQI and health message.",
+   "users": "Citizens, schools",
+   "method": "CPCB National Air Quality Index (2014): sub-indices by linear interpolation in breakpoint tables; AQI = maximum sub-index.",
+   "data": [
+    {
+     "name": "Open Government Data Platform India",
+     "url": "https://data.gov.in/"
+    },
+    {
+     "name": "OpenAQ air-quality measurements API",
+     "url": "https://openaq.org/"
+    },
+    {
+     "name": "Central Pollution Control Board data and standards",
+     "url": "https://cpcb.nic.in/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "if-else",
+    "methods"
+   ],
+   "appShows": "AQI dial, sub-index table, daily trend chart.",
+   "stretch": "Compare stations across Tamil Nadu."
+  },
+  {
+   "id": "P032",
+   "title": "Stack plume dispersion (Gaussian model)",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Advanced",
+   "problem": "How far downwind does a brick kiln or boiler stack affect ground-level concentrations?",
+   "users": "Industries, regulators",
+   "method": "Gaussian plume equation with Pasquill-Gifford stability classes and Briggs dispersion coefficients; plume rise (Briggs).",
+   "data": [
+    {
+     "name": "ERA5 hourly reanalysis (Copernicus Climate Data Store)",
+     "url": "https://cds.climate.copernicus.eu/"
+    },
+    {
+     "name": "Open-Meteo historical and forecast weather API (CC BY 4.0)",
+     "url": "https://open-meteo.com/"
+    },
+    {
+     "name": "Central Pollution Control Board data and standards",
+     "url": "https://cpcb.nic.in/"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "Math functions",
+    "classes"
+   ],
+   "appShows": "Concentration contour map for current wind, maximum ground-level concentration.",
+   "stretch": "Add annual wind-rose weighted average."
+  },
+  {
+   "id": "P033",
+   "title": "Traffic noise prediction near a hospital",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Intermediate",
+   "problem": "Will traffic noise near a hospital exceed the silence-zone limits?",
+   "users": "Traffic police, hospitals",
+   "method": "Calculation of Road Traffic Noise (CRTN, UK DoT 1988) corrections for flow, speed, heavy vehicles and distance; compare with Noise Pollution (Regulation and Control) Rules, 2000.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "Central Pollution Control Board data and standards",
+     "url": "https://cpcb.nic.in/"
+    }
+   ],
+   "javaConcepts": [
+    "methods",
+    "logarithms",
+    "classes"
+   ],
+   "appShows": "Predicted L10 levels along a road, map of exceedance.",
+   "stretch": "Validate with measured levels from a phone sound meter app."
+  },
+  {
+   "id": "P034",
+   "title": "Lake water quality index and trend",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Intermediate",
+   "problem": "Which lakes and rivers monitored by CPCB in Tamil Nadu are improving or degrading?",
+   "users": "Environmental agencies, NGOs",
+   "method": "NSF Water Quality Index sub-curves and weights; trend over years.",
+   "data": [
+    {
+     "name": "Central Pollution Control Board data and standards",
+     "url": "https://cpcb.nic.in/"
+    },
+    {
+     "name": "Open Government Data Platform India",
+     "url": "https://data.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "maps",
+    "arrays",
+    "methods"
+   ],
+   "appShows": "Map of stations by WQI class, trend chart per station.",
+   "stretch": "Add Mann-Kendall trend test."
+  },
+  {
+   "id": "P035",
+   "title": "Construction dust emission estimator",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Intermediate",
+   "problem": "How much PM10 does a construction site emit, and how much does water spraying cut it?",
+   "users": "Contractors, regulators",
+   "method": "US EPA AP-42 Section 13.2.3 heavy construction emission factor and control efficiencies.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "Central Pollution Control Board data and standards",
+     "url": "https://cpcb.nic.in/"
+    }
+   ],
+   "javaConcepts": [
+    "variables",
+    "methods",
+    "if-else"
+   ],
+   "appShows": "Monthly emission estimate with and without controls.",
+   "stretch": "Couple with the Gaussian model for nearby concentrations."
+  },
+  {
+   "id": "P036",
+   "title": "Classroom CO2 and ventilation calculator",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Beginner",
+   "problem": "Are classrooms ventilated enough? CO2 is a proxy for fresh air per person.",
+   "users": "Facility managers, students",
+   "method": "Steady-state CO2 mass balance to estimate outdoor air per person; ASHRAE 62.1 ventilation rate procedure.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "variables",
+    "methods",
+    "arrays"
+   ],
+   "appShows": "Estimated ventilation rate per person and compliance; time series of measured CO2.",
+   "stretch": "Use a low-cost sensor and log data automatically."
+  },
+  {
+   "id": "P037",
+   "title": "Urban green cover and NDVI mapper",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Intermediate",
+   "problem": "Which wards of Vellore have the least green cover?",
+   "users": "Urban planners, environmental groups",
+   "method": "NDVI = (NIR - Red) / (NIR + Red) from Sentinel-2 bands; green fraction per ward.",
+   "data": [
+    {
+     "name": "Sentinel-2 and Sentinel-5P imagery (Copernicus Data Space Ecosystem)",
+     "url": "https://dataspace.copernicus.eu/"
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "loops",
+    "maps"
+   ],
+   "appShows": "NDVI map, green cover percentage per ward, ranking.",
+   "stretch": "Compare dry and wet season."
+  },
+  {
+   "id": "P038",
+   "title": "Satellite NO2 hotspots along highways",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Advanced",
+   "problem": "Where are nitrogen dioxide levels highest in Tamil Nadu, and do they follow highways and power plants?",
+   "users": "Researchers, regulators",
+   "method": "Monthly mean tropospheric NO2 columns from Sentinel-5P TROPOMI; spatial aggregation and overlay with roads.",
+   "data": [
+    {
+     "name": "Sentinel-2 and Sentinel-5P imagery (Copernicus Data Space Ecosystem)",
+     "url": "https://dataspace.copernicus.eu/"
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "statistics",
+    "file reading"
+   ],
+   "appShows": "Monthly NO2 map, hotspot list with nearby sources.",
+   "stretch": "Compare before and after a lockdown or festival period."
+  },
+  {
+   "id": "P039",
+   "title": "Industrial effluent compliance checker",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Beginner",
+   "problem": "Does a factory's effluent meet the discharge standards?",
+   "users": "Industries, pollution control boards",
+   "method": "Compare effluent parameters with the General Standards for Discharge of Environmental Pollutants (Environment (Protection) Rules, 1986, Schedule VI) for inland surface water, sewers and land.",
+   "data": [
+    {
+     "name": "Central Pollution Control Board data and standards",
+     "url": "https://cpcb.nic.in/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "maps",
+    "enums",
+    "if-else"
+   ],
+   "appShows": "Compliance table by discharge route, list of failing parameters.",
+   "stretch": "Track compliance over months."
+  },
+  {
+   "id": "P040",
+   "title": "Soil heavy-metal contamination index",
+   "category": "Environmental quality: air, water, noise",
+   "level": "Intermediate",
+   "problem": "Is soil near an industrial area contaminated with heavy metals?",
+   "users": "Environmental consultants",
+   "method": "Geoaccumulation index (Muller, 1969) and contamination factor relative to background concentrations.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "SoilGrids 250 m soil properties (ISRIC, CC BY 4.0)",
+     "url": "https://soilgrids.org/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "Math.log",
+    "classes"
+   ],
+   "appShows": "Index per sample and metal, map of sampling points by class.",
+   "stretch": "Add the pollution load index."
+  },
+  {
+   "id": "P041",
+   "title": "Ward-level waste generation and collection fleet",
+   "category": "Solid waste and circular economy",
+   "level": "Beginner",
+   "problem": "How many collection vehicles and trips does a ward need each day?",
+   "users": "Municipal sanitation officers",
+   "method": "Per-capita waste generation and composition; vehicle capacity, trips and crew (CPHEEO Municipal Solid Waste Management Manual, 2016; Solid Waste Management Rules, 2016).",
+   "data": [
+    {
+     "name": "Census of India tables",
+     "url": "https://censusindia.gov.in/"
+    },
+    {
+     "name": "CPHEEO manuals (water supply, sewerage, storm water, solid waste)",
+     "url": "https://cpheeo.gov.in/"
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "variables",
+    "methods",
+    "classes"
+   ],
+   "appShows": "Daily tonnage by waste type, number of vehicles and trips.",
+   "stretch": "Plan for population growth to 2035."
+  },
+  {
+   "id": "P042",
+   "title": "Waste collection route optimisation",
+   "category": "Solid waste and circular economy",
+   "level": "Advanced",
+   "problem": "Can collection trucks cover all bin points with less driving?",
+   "users": "Municipal fleets",
+   "method": "Road graph from OpenStreetMap; shortest paths by Dijkstra's algorithm; tour by nearest-neighbour and 2-opt heuristics for the travelling salesman problem.",
+   "data": [
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "graphs",
+    "priority queue",
+    "HashMap"
+   ],
+   "appShows": "Route map, distance before and after optimisation.",
+   "stretch": "Add truck capacity (vehicle routing problem)."
+  },
+  {
+   "id": "P043",
+   "title": "Landfill gas generation estimate",
+   "category": "Solid waste and circular economy",
+   "level": "Intermediate",
+   "problem": "How much methane will a closed dumpsite generate, and is gas capture worthwhile?",
+   "users": "Municipalities, energy companies",
+   "method": "US EPA LandGEM first-order decay model with methane generation rate k and potential L0.",
+   "data": [
+    {
+     "name": "US EPA LandGEM landfill gas model",
+     "url": "https://www.epa.gov/land-research/landfill-gas-emissions-model-landgem"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "loops",
+    "Math.exp",
+    "arrays"
+   ],
+   "appShows": "Annual methane and CO2 generation curve, energy potential.",
+   "stretch": "Compare default and region-specific k values."
+  },
+  {
+   "id": "P044",
+   "title": "Campus food waste to biogas",
+   "category": "Solid waste and circular economy",
+   "level": "Beginner",
+   "problem": "How much biogas and cooking gas could mess food waste produce?",
+   "users": "Hostel administration",
+   "method": "Theoretical methane yield from the Buswell equation using elemental composition; volatile solids and practical yield factor.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "variables",
+    "methods",
+    "classes"
+   ],
+   "appShows": "Daily biogas volume, LPG cylinder equivalent, digester size.",
+   "stretch": "Add a payback calculation."
+  },
+  {
+   "id": "P045",
+   "title": "Construction and demolition waste estimator",
+   "category": "Solid waste and circular economy",
+   "level": "Beginner",
+   "problem": "How much C&D waste will a demolition produce and how much can be recycled?",
+   "users": "Contractors, municipal approval",
+   "method": "Material quantities from the building's dimensions; categories and duties under the Construction and Demolition Waste Management Rules, 2016.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "maps",
+    "methods"
+   ],
+   "appShows": "Waste by material in tonnes, recyclable fraction, trip count.",
+   "stretch": "Link to recycled-aggregate concrete design."
+  },
+  {
+   "id": "P046",
+   "title": "Embodied carbon of building materials",
+   "category": "Solid waste and circular economy",
+   "level": "Intermediate",
+   "problem": "Which wall and slab choices cut a building's embodied carbon?",
+   "users": "Architects, students",
+   "method": "Material quantities times embodied carbon factors from the ICE database; compare burnt clay brick, fly-ash brick and AAC block walls.",
+   "data": [
+    {
+     "name": "ICE embodied carbon database (Circular Ecology)",
+     "url": "https://circularecology.com/embodied-carbon-footprint-database.html"
+    },
+    {
+     "name": "CPWD Delhi Schedule of Rates and analysis of rates",
+     "url": "https://cpwd.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "interfaces",
+    "maps"
+   ],
+   "appShows": "Embodied carbon per element and option, bar chart comparison.",
+   "stretch": "Add operational energy for a whole-life view."
+  },
+  {
+   "id": "P047",
+   "title": "Smart bin fill-level dashboard",
+   "category": "Solid waste and circular economy",
+   "level": "Intermediate",
+   "problem": "Bins overflow while trucks visit empty ones. Can fill-level logs schedule pickups?",
+   "users": "Campus sanitation",
+   "method": "Fill-level time series per bin; fill-rate estimation by linear regression; pickup when predicted level exceeds a threshold.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "ArrayList",
+    "regression",
+    "classes"
+   ],
+   "appShows": "Map of bins with predicted full time, pickup list.",
+   "stretch": "Feed predictions into the route optimiser."
+  },
+  {
+   "id": "P048",
+   "title": "Landfill site suitability analysis",
+   "category": "Solid waste and circular economy",
+   "level": "Advanced",
+   "problem": "Where could a new sanitary landfill be sited around Vellore?",
+   "users": "Planning authorities",
+   "method": "Exclusion buffers (water bodies, settlements, airports) and weighted overlay of slope, distance to roads and land cover following siting criteria in the CPHEEO MSW Manual (2016).",
+   "data": [
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "ESA WorldCover 10 m land cover (CC BY 4.0)",
+     "url": "https://esa-worldcover.org/"
+    },
+    {
+     "name": "JRC Global Surface Water (1984-present)",
+     "url": "https://global-surface-water.appspot.com/"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "methods",
+    "classes"
+   ],
+   "appShows": "Suitability map with excluded zones, best candidate areas.",
+   "stretch": "Let the user change weights and see sensitivity."
+  },
+  {
+   "id": "P049",
+   "title": "Recycled aggregate concrete mix",
+   "category": "Solid waste and circular economy",
+   "level": "Intermediate",
+   "problem": "How should a concrete mix be adjusted when part of the coarse aggregate is recycled?",
+   "users": "Concrete technologists",
+   "method": "IS 10262:2019 mix proportioning with recycled aggregate allowed by IS 383:2016; water absorption correction.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "methods",
+    "validation"
+   ],
+   "appShows": "Mix proportions per cubic metre for 0-100 % replacement.",
+   "stretch": "Add cost and embodied carbon per mix."
+  },
+  {
+   "id": "P050",
+   "title": "Fly ash utilisation tracker",
+   "category": "Solid waste and circular economy",
+   "level": "Beginner",
+   "problem": "Thermal power stations must use their fly ash. How are Tamil Nadu plants doing?",
+   "users": "Policy students, researchers",
+   "method": "Utilisation percentage by plant and year from Central Electricity Authority fly ash reports; ranking and trends.",
+   "data": [
+    {
+     "name": "Central Electricity Authority reports (fly ash utilisation)",
+     "url": "https://cea.nic.in/"
+    }
+   ],
+   "javaConcepts": [
+    "ArrayList",
+    "sorting",
+    "file reading"
+   ],
+   "appShows": "Chart of utilisation by plant and year, map of plants.",
+   "stretch": "Estimate bricks that could be made from unused ash."
+  },
+  {
+   "id": "P051",
+   "title": "Heat index and heat-wave day counter",
+   "category": "Climate change, heat and adaptation",
+   "level": "Beginner",
+   "problem": "How many dangerous heat days does Vellore have each summer, and is it getting worse?",
+   "users": "Public health officials, students",
+   "method": "Heat index by the US NWS Rothfusz regression; heat-wave days by IMD criteria for plains stations.",
+   "data": [
+    {
+     "name": "Open-Meteo historical and forecast weather API (CC BY 4.0)",
+     "url": "https://open-meteo.com/"
+    },
+    {
+     "name": "ERA5 hourly reanalysis (Copernicus Climate Data Store)",
+     "url": "https://cds.climate.copernicus.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "loops",
+    "if-else"
+   ],
+   "appShows": "Daily heat index chart, heat-wave days per year, trend.",
+   "stretch": "Map heat index across Tamil Nadu."
+  },
+  {
+   "id": "P052",
+   "title": "Urban heat island from Landsat",
+   "category": "Climate change, heat and adaptation",
+   "level": "Intermediate",
+   "problem": "How much hotter are paved areas of Vellore than vegetated ones?",
+   "users": "Urban planners",
+   "method": "Land surface temperature from Landsat Collection 2 Level-2 surface temperature band; relation with NDVI and built-up fraction.",
+   "data": [
+    {
+     "name": "Landsat Collection 2 Level-2 (USGS EarthExplorer)",
+     "url": "https://earthexplorer.usgs.gov/"
+    },
+    {
+     "name": "ESA WorldCover 10 m land cover (CC BY 4.0)",
+     "url": "https://esa-worldcover.org/"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "regression",
+    "maps"
+   ],
+   "appShows": "LST map, temperature difference by land-cover class, scatter LST-NDVI.",
+   "stretch": "Track change over 20 years."
+  },
+  {
+   "id": "P053",
+   "title": "Future rainfall and temperature for Vellore",
+   "category": "Climate change, heat and adaptation",
+   "level": "Advanced",
+   "problem": "How might Vellore's climate change by 2050 under different emission scenarios?",
+   "users": "Planners, climate students",
+   "method": "NASA NEX-GDDP-CMIP6 daily projections for several models, SSP2-4.5 and SSP5-8.5; change factors relative to 1985-2014. NASA advises expert consultation before engineering use of these projections.",
+   "data": [
+    {
+     "name": "NASA NEX-GDDP-CMIP6 downscaled climate projections",
+     "url": "https://www.nccs.nasa.gov/services/data-collections/land-based-products/nex-gddp-cmip6"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "statistics",
+    "file reading"
+   ],
+   "appShows": "Projected change in annual rainfall, extreme rainfall and hot days, model spread.",
+   "stretch": "Feed change factors into the IDF curve problem."
+  },
+  {
+   "id": "P054",
+   "title": "Sea-level rise exposure of the Chennai coast",
+   "category": "Climate change, heat and adaptation",
+   "level": "Intermediate",
+   "problem": "Which coastal areas near Chennai lie below projected 2100 sea levels?",
+   "users": "Coastal planners",
+   "method": "IPCC AR6 regional sea-level projections; inundation by connected bathtub method on the DEM (with stated limitations of DEM accuracy).",
+   "data": [
+    {
+     "name": "NASA / IPCC AR6 sea-level projection tool",
+     "url": "https://sealevel.nasa.gov/ipcc-ar6-sea-level-projection-tool"
+    },
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "WorldPop gridded population",
+     "url": "https://www.worldpop.org/"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "flood fill",
+    "classes"
+   ],
+   "appShows": "Map of exposed area and population by scenario.",
+   "stretch": "Add storm surge on top of sea-level rise."
+  },
+  {
+   "id": "P055",
+   "title": "Cooling degree days and air-conditioning energy",
+   "category": "Climate change, heat and adaptation",
+   "level": "Beginner",
+   "problem": "How much does cooling energy depend on climate, and how much will it grow with warming?",
+   "users": "Building engineers",
+   "method": "Cooling degree days from daily mean temperature (base 18-24 deg C); energy = UA x CDD x 24 / COP.",
+   "data": [
+    {
+     "name": "Open-Meteo historical and forecast weather API (CC BY 4.0)",
+     "url": "https://open-meteo.com/"
+    },
+    {
+     "name": "ERA5 hourly reanalysis (Copernicus Climate Data Store)",
+     "url": "https://cds.climate.copernicus.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "loops",
+    "methods"
+   ],
+   "appShows": "Monthly CDD, cooling energy estimate, effect of a 1 deg C warmer climate.",
+   "stretch": "Compare Indian cities."
+  },
+  {
+   "id": "P056",
+   "title": "Rooftop solar for campus buildings",
+   "category": "Climate change, heat and adaptation",
+   "level": "Intermediate",
+   "problem": "How much electricity could campus roofs generate with solar panels?",
+   "users": "Estate office, energy managers",
+   "method": "Usable roof area from building footprints; PV yield from PVGIS or NASA POWER irradiance with system losses and performance ratio.",
+   "data": [
+    {
+     "name": "Google Open Buildings footprints (CC BY 4.0 / ODbL)",
+     "url": "https://sites.research.google/open-buildings/"
+    },
+    {
+     "name": "PVGIS photovoltaic performance tool (EU JRC)",
+     "url": "https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en"
+    },
+    {
+     "name": "NASA POWER daily meteorology and solar radiation",
+     "url": "https://power.larc.nasa.gov/"
+    },
+    {
+     "name": "Global Solar Atlas",
+     "url": "https://globalsolaratlas.info/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "methods",
+    "ArrayList"
+   ],
+   "appShows": "Map of roofs with annual kWh, total campus share of demand.",
+   "stretch": "Add payback with current tariffs."
+  },
+  {
+   "id": "P057",
+   "title": "Commuting carbon footprint survey",
+   "category": "Climate change, heat and adaptation",
+   "level": "Beginner",
+   "problem": "How much CO2 do students and staff emit travelling to campus?",
+   "users": "Sustainability office",
+   "method": "Trips x distance x mode-specific emission factors (India GHG Program road transport emission factors, 2015).",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "enums",
+    "maps"
+   ],
+   "appShows": "Emissions by mode, per person, scenario of shifting to buses or cycles.",
+   "stretch": "Collect survey data with a simple web form."
+  },
+  {
+   "id": "P058",
+   "title": "Campus tree carbon inventory",
+   "category": "Climate change, heat and adaptation",
+   "level": "Intermediate",
+   "problem": "How much carbon do campus trees store?",
+   "users": "Green campus committee",
+   "method": "Above-ground biomass by the pantropical allometric equation of Chave et al. (2014) from diameter, height and wood density; carbon = 0.47 x biomass.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "Global Forest Watch",
+     "url": "https://www.globalforestwatch.org/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "ArrayList",
+    "Math.pow"
+   ],
+   "appShows": "Tree map, carbon per species, total stock.",
+   "stretch": "Add annual sequestration from repeat measurements."
+  },
+  {
+   "id": "P059",
+   "title": "Climate-adjusted design rainfall",
+   "category": "Climate change, heat and adaptation",
+   "level": "Advanced",
+   "problem": "Drains built today must work in 2050. How much larger should design rainfall be?",
+   "users": "Drainage designers",
+   "method": "Scale IDF intensities with change factors of annual maximum daily rainfall from CMIP6 projections; compare design flows. Present results as scenarios, not design values: NASA advises expert consultation before engineering use of NEX-GDDP.",
+   "data": [
+    {
+     "name": "NASA NEX-GDDP-CMIP6 downscaled climate projections",
+     "url": "https://www.nccs.nasa.gov/services/data-collections/land-based-products/nex-gddp-cmip6"
+    },
+    {
+     "name": "IMD gridded rainfall 0.25 deg (daily, 1901-present)",
+     "url": "https://www.imdpune.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "methods",
+    "interfaces"
+   ],
+   "appShows": "Present and future IDF curves, drain size change.",
+   "stretch": "Show uncertainty across climate models."
+  },
+  {
+   "id": "P060",
+   "title": "Cool roof benefit calculator",
+   "category": "Climate change, heat and adaptation",
+   "level": "Beginner",
+   "problem": "Does painting a roof white really cool the room below?",
+   "users": "Homeowners, NGOs",
+   "method": "Steady-state roof surface heat balance with solar absorptance (1 - albedo), convection and conduction; heat gain reduction.",
+   "data": [
+    {
+     "name": "NASA POWER daily meteorology and solar radiation",
+     "url": "https://power.larc.nasa.gov/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "variables",
+    "methods",
+    "loops"
+   ],
+   "appShows": "Roof temperature and heat gain for dark and white roofs by month.",
+   "stretch": "Validate with infrared thermometer measurements."
+  },
+  {
+   "id": "P061",
+   "title": "Seismic base shear calculator (IS 1893)",
+   "category": "Disasters and resilience",
+   "level": "Intermediate",
+   "problem": "What lateral earthquake force must a building in Vellore resist?",
+   "users": "Structural engineers",
+   "method": "Equivalent static method of IS 1893 (Part 1):2016: zone factor, importance factor, response reduction factor, Sa/g from the design spectrum, vertical distribution.",
+   "data": [
+    {
+     "name": "National Center for Seismology, India",
+     "url": "https://seismo.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "arrays",
+    "methods"
+   ],
+   "appShows": "Base shear, storey forces chart, comparison across seismic zones.",
+   "stretch": "Add the response spectrum method."
+  },
+  {
+   "id": "P062",
+   "title": "Live earthquake map with shaking estimate",
+   "category": "Disasters and resilience",
+   "level": "Beginner",
+   "problem": "Show recent earthquakes near India and estimate whether they could be felt in a city.",
+   "users": "Students, public",
+   "method": "USGS FDSN event web service (GeoJSON); epicentral distance by the haversine formula; felt-intensity estimate from a published intensity attenuation relation.",
+   "data": [
+    {
+     "name": "USGS earthquake catalogue web service (FDSN)",
+     "url": "https://earthquake.usgs.gov/fdsnws/event/1/"
+    },
+    {
+     "name": "National Center for Seismology, India",
+     "url": "https://seismo.gov.in/"
+    }
+   ],
+   "javaConcepts": [
+    "JSON parsing",
+    "classes",
+    "Math trigonometry"
+   ],
+   "appShows": "Map of quakes sized by magnitude, list sorted by distance.",
+   "stretch": "Add historical catalogue statistics (Gutenberg-Richter)."
+  },
+  {
+   "id": "P063",
+   "title": "Landslide susceptibility for the Nilgiris",
+   "category": "Disasters and resilience",
+   "level": "Advanced",
+   "problem": "Which slopes in the Nilgiris are most prone to shallow landslides after heavy rain?",
+   "users": "District disaster management",
+   "method": "Infinite-slope factor of safety with slope from the DEM and soil properties from SoilGrids; wetness scenarios; check against the GSI landslide inventory.",
+   "data": [
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "SoilGrids 250 m soil properties (ISRIC, CC BY 4.0)",
+     "url": "https://soilgrids.org/"
+    },
+    {
+     "name": "GSI Bhukosh geoscience portal (landslide inventory)",
+     "url": "https://bhukosh.gsi.gov.in/"
+    },
+    {
+     "name": "NASA landslide catalogue and susceptibility",
+     "url": "https://gpm.nasa.gov/landslides/"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "methods",
+    "classes"
+   ],
+   "appShows": "Factor-of-safety map for dry and saturated conditions, overlay of mapped landslides.",
+   "stretch": "Use rainfall thresholds for early warning."
+  },
+  {
+   "id": "P064",
+   "title": "Cyclone track and wind hazard explorer",
+   "category": "Disasters and resilience",
+   "level": "Intermediate",
+   "problem": "How often do cyclones pass near Vellore and Chennai, and how strong are the winds?",
+   "users": "Students, disaster managers",
+   "method": "IBTrACS best tracks; Holland (1980) parametric wind profile for wind at a site.",
+   "data": [
+    {
+     "name": "NOAA IBTrACS tropical cyclone best tracks",
+     "url": "https://www.ncei.noaa.gov/products/international-best-track-archive"
+    }
+   ],
+   "javaConcepts": [
+    "file reading",
+    "classes",
+    "Math functions"
+   ],
+   "appShows": "Track map, list of storms within a radius, estimated peak site wind.",
+   "stretch": "Compute return periods of site wind speed."
+  },
+  {
+   "id": "P065",
+   "title": "Wind load on a building (IS 875 Part 3)",
+   "category": "Disasters and resilience",
+   "level": "Intermediate",
+   "problem": "What wind pressure acts on a tall building in Chennai?",
+   "users": "Structural engineers",
+   "method": "IS 875 (Part 3):2015: basic wind speed, k1-k4 factors, design wind pressure, force coefficients.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "lookup tables",
+    "methods"
+   ],
+   "appShows": "Pressure profile with height, total wind force.",
+   "stretch": "Compare cities and terrain categories."
+  },
+  {
+   "id": "P066",
+   "title": "Flood shelter accessibility",
+   "category": "Disasters and resilience",
+   "level": "Advanced",
+   "problem": "Can everyone reach a flood shelter within 2 km on foot?",
+   "users": "Disaster management authorities",
+   "method": "Network distance on OpenStreetMap roads (Dijkstra, multiple sources); population from WorldPop.",
+   "data": [
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "WorldPop gridded population",
+     "url": "https://www.worldpop.org/"
+    }
+   ],
+   "javaConcepts": [
+    "graphs",
+    "priority queue",
+    "maps"
+   ],
+   "appShows": "Map of walking distance to nearest shelter, population beyond 2 km.",
+   "stretch": "Propose new shelter sites that reduce uncovered population most."
+  },
+  {
+   "id": "P067",
+   "title": "Forest fire hotspot monitor",
+   "category": "Disasters and resilience",
+   "level": "Beginner",
+   "problem": "Track active fires in the Eastern Ghats in near real time.",
+   "users": "Forest department, students",
+   "method": "NASA FIRMS active fire detections; spatial and monthly aggregation.",
+   "data": [
+    {
+     "name": "NASA FIRMS active fire detections",
+     "url": "https://firms.modaps.eosdis.nasa.gov/"
+    },
+    {
+     "name": "ESA WorldCover 10 m land cover (CC BY 4.0)",
+     "url": "https://esa-worldcover.org/"
+    }
+   ],
+   "javaConcepts": [
+    "file reading",
+    "ArrayList",
+    "maps"
+   ],
+   "appShows": "Fire map, counts per month and land-cover class.",
+   "stretch": "Combine with heat-wave days."
+  },
+  {
+   "id": "P068",
+   "title": "Dam-break flood wave",
+   "category": "Disasters and resilience",
+   "level": "Advanced",
+   "problem": "If a tank bund fails, how fast does the flood front travel downstream?",
+   "users": "Dam safety students",
+   "method": "Ritter (1892) analytical solution for instantaneous dam break on a dry horizontal frictionless channel; wave front and depth profiles.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "Math functions",
+    "arrays",
+    "loops"
+   ],
+   "appShows": "Animated depth profile, arrival time at chosen distances.",
+   "stretch": "Compare with a simple numerical shallow-water solver."
+  },
+  {
+   "id": "P069",
+   "title": "Building evacuation time",
+   "category": "Disasters and resilience",
+   "level": "Intermediate",
+   "problem": "Can occupants of an academic block evacuate in time during a fire?",
+   "users": "Fire safety officers",
+   "method": "Occupant load and exit width from the National Building Code of India 2016 Part 4; travel time and flow capacity of exits and stairs.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "methods",
+    "if-else"
+   ],
+   "appShows": "Evacuation time per floor, bottleneck exits.",
+   "stretch": "Model a blocked staircase scenario."
+  },
+  {
+   "id": "P070",
+   "title": "Rapid visual screening of buildings",
+   "category": "Disasters and resilience",
+   "level": "Beginner",
+   "problem": "Which buildings in a neighbourhood are most vulnerable to earthquakes?",
+   "users": "Municipal engineers, NGOs",
+   "method": "FEMA P-154 rapid visual screening score modifiers (adapted), survey form with geotagged photos.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "enums",
+    "ArrayList"
+   ],
+   "appShows": "Map of surveyed buildings coloured by score, buildings needing detailed evaluation.",
+   "stretch": "Compare with IS 15988 seismic evaluation guidance."
+  },
+  {
+   "id": "P071",
+   "title": "Traffic signal timing for a junction",
+   "category": "Transportation and roads",
+   "level": "Intermediate",
+   "problem": "Queues at a Vellore junction are long. What cycle length and green splits minimise delay?",
+   "users": "Traffic police, city engineers",
+   "method": "Webster (1958) optimum cycle length C0 = (1.5 L + 5) / (1 - Y) from classified counts converted to passenger car units and saturation flows.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "methods",
+    "classes"
+   ],
+   "appShows": "Phase diagram, cycle and green times, expected delay.",
+   "stretch": "Compare with fixed timings in use."
+  },
+  {
+   "id": "P072",
+   "title": "Flexible pavement design (IRC:37-2018)",
+   "category": "Transportation and roads",
+   "level": "Intermediate",
+   "problem": "Design the bituminous pavement layers for a new road.",
+   "users": "Highway engineers",
+   "method": "Design traffic in million standard axles (msa) with vehicle damage factor and lane distribution factor, subgrade CBR, layer thicknesses from IRC:37-2018 design charts.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "lookup tables",
+    "classes",
+    "methods"
+   ],
+   "appShows": "Design traffic, layer composition and thickness diagram.",
+   "stretch": "Compare cost of alternative compositions."
+  },
+  {
+   "id": "P073",
+   "title": "Pavement Condition Index survey app",
+   "category": "Transportation and roads",
+   "level": "Beginner",
+   "problem": "Rank campus and city roads for repair from a visual distress survey.",
+   "users": "Road maintenance engineers",
+   "method": "Pavement Condition Index (ASTM D6433): distress type, severity, extent, deduct values.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "enums",
+    "ArrayList"
+   ],
+   "appShows": "Map of road sections coloured by PCI, repair priority list.",
+   "stretch": "Add photos and track deterioration over time."
+  },
+  {
+   "id": "P074",
+   "title": "Road accident hotspot analysis",
+   "category": "Transportation and roads",
+   "level": "Intermediate",
+   "problem": "Where do accidents cluster on the highways around Vellore?",
+   "users": "Police, road safety committees",
+   "method": "Kernel density estimation of accident locations; severity-weighted ranking; national statistics for context.",
+   "data": [
+    {
+     "name": "MoRTH annual reports, Road Accidents in India",
+     "url": "https://morth.nic.in/"
+    },
+    {
+     "name": "Open Government Data Platform India",
+     "url": "https://data.gov.in/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "Math.exp",
+    "sorting"
+   ],
+   "appShows": "Heat map of accidents, ranked list of hotspots.",
+   "stretch": "Relate hotspots to road geometry and junctions."
+  },
+  {
+   "id": "P075",
+   "title": "Bus stop coverage with GTFS",
+   "category": "Transportation and roads",
+   "level": "Intermediate",
+   "problem": "What share of people live within 500 m of a bus stop?",
+   "users": "Transport planners",
+   "method": "GTFS stops and routes; walking buffers; population from WorldPop; service frequency per stop.",
+   "data": [
+    {
+     "name": "Delhi Open Transit Data (static GTFS; real-time feed needs a key)",
+     "url": "https://otd.delhi.gov.in/"
+    },
+    {
+     "name": "WorldPop gridded population",
+     "url": "https://www.worldpop.org/"
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "file reading (CSV)",
+    "HashMap",
+    "classes"
+   ],
+   "appShows": "Coverage map, population served, frequency by stop.",
+   "stretch": "Find the best locations for new stops."
+  },
+  {
+   "id": "P076",
+   "title": "Speed-flow-density study from video counts",
+   "category": "Transportation and roads",
+   "level": "Beginner",
+   "problem": "How does speed drop as traffic density rises on a campus road?",
+   "users": "Traffic engineering students",
+   "method": "Greenshields linear speed-density model fitted by regression; capacity = vf kj / 4.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "regression",
+    "methods"
+   ],
+   "appShows": "Scatter plots with fitted curves, estimated free-flow speed, jam density, capacity.",
+   "stretch": "Compare morning and evening peaks."
+  },
+  {
+   "id": "P077",
+   "title": "Campus parking demand study",
+   "category": "Transportation and roads",
+   "level": "Beginner",
+   "problem": "Is there enough parking near the academic blocks?",
+   "users": "Estate office",
+   "method": "Parking accumulation, occupancy, turnover and duration from licence-plate surveys.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "HashMap",
+    "loops",
+    "classes"
+   ],
+   "appShows": "Accumulation curve, peak occupancy, average duration.",
+   "stretch": "Estimate demand under a parking fee."
+  },
+  {
+   "id": "P078",
+   "title": "Walkability and street connectivity index",
+   "category": "Transportation and roads",
+   "level": "Intermediate",
+   "problem": "Which neighbourhoods are easiest to walk?",
+   "users": "Urban designers",
+   "method": "Intersection density, link-node ratio and route directness from the OpenStreetMap network.",
+   "data": [
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "graphs",
+    "HashMap",
+    "methods"
+   ],
+   "appShows": "Map of indices per ward, ranking.",
+   "stretch": "Add footpath availability from a field survey."
+  },
+  {
+   "id": "P079",
+   "title": "Horizontal curve design check",
+   "category": "Transportation and roads",
+   "level": "Intermediate",
+   "problem": "Is an existing highway curve safe for its design speed?",
+   "users": "Highway engineers",
+   "method": "Superelevation, minimum radius, extra widening and stopping sight distance per IRC:73-1980 and IRC:38-1988.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    }
+   ],
+   "javaConcepts": [
+    "methods",
+    "if-else",
+    "classes"
+   ],
+   "appShows": "Required versus provided values with pass/fail, curve sketch.",
+   "stretch": "Check a whole route from survey coordinates."
+  },
+  {
+   "id": "P080",
+   "title": "EV charging station siting",
+   "category": "Transportation and roads",
+   "level": "Advanced",
+   "problem": "Where should a city place its first EV charging stations?",
+   "users": "Electricity board, city planners",
+   "method": "Candidate sites on the road network; maximal coverage location problem solved greedily; demand from population and traffic proxies.",
+   "data": [
+    {
+     "name": "OpenStreetMap (ODbL), query with Overpass Turbo",
+     "url": "https://overpass-turbo.eu/"
+    },
+    {
+     "name": "WorldPop gridded population",
+     "url": "https://www.worldpop.org/"
+    }
+   ],
+   "javaConcepts": [
+    "graphs",
+    "greedy algorithms",
+    "classes"
+   ],
+   "appShows": "Map of chosen sites and coverage, demand covered versus number of stations.",
+   "stretch": "Add grid capacity constraints."
+  },
+  {
+   "id": "P081",
+   "title": "Concrete mix design (IS 10262:2019)",
+   "category": "Structures, materials and construction",
+   "level": "Intermediate",
+   "problem": "Proportion an M25 concrete mix for given materials and exposure.",
+   "users": "Site engineers, concrete students",
+   "method": "IS 10262:2019 procedure: target mean strength, water-cement ratio with IS 456 durability limits, water and cement content, aggregate proportions.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "methods",
+    "validation"
+   ],
+   "appShows": "Step-by-step mix calculation and quantities per cubic metre and per bag.",
+   "stretch": "Add fly ash or GGBS replacement."
+  },
+  {
+   "id": "P082",
+   "title": "Reinforced concrete beam design (IS 456)",
+   "category": "Structures, materials and construction",
+   "level": "Intermediate",
+   "problem": "Design a simply supported beam for flexure and shear.",
+   "users": "Civil engineering students",
+   "method": "Limit state design per IS 456:2000: Mu,lim, required steel area, shear reinforcement, deflection by span/depth ratio.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "methods",
+    "if-else"
+   ],
+   "appShows": "Design summary, cross-section drawing with bars.",
+   "stretch": "Add doubly reinforced and T-beam sections."
+  },
+  {
+   "id": "P083",
+   "title": "Bar bending schedule generator",
+   "category": "Structures, materials and construction",
+   "level": "Beginner",
+   "problem": "Prepare the bar bending schedule of a slab or beam quickly and without arithmetic errors.",
+   "users": "Site engineers",
+   "method": "Cutting lengths with bend deductions and hook lengths (IS 2502:1963), unit weight d^2/162 kg/m.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "ArrayList",
+    "methods"
+   ],
+   "appShows": "Bar schedule table, total steel by diameter, CSV export.",
+   "stretch": "Optimise cutting from 12 m bars to reduce waste."
+  },
+  {
+   "id": "P084",
+   "title": "Quantity and cost estimate of a house",
+   "category": "Structures, materials and construction",
+   "level": "Beginner",
+   "problem": "Estimate materials and cost of a single-storey house from its plan dimensions.",
+   "users": "Homeowners, students",
+   "method": "Centre-line method for masonry, concrete and plaster quantities; rates from the CPWD Delhi Schedule of Rates.",
+   "data": [
+    {
+     "name": "CPWD Delhi Schedule of Rates and analysis of rates",
+     "url": "https://cpwd.gov.in/"
+    },
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "maps",
+    "methods"
+   ],
+   "appShows": "Abstract of cost by item, material requirements, pie chart.",
+   "stretch": "Compare alternative wall materials."
+  },
+  {
+   "id": "P085",
+   "title": "Construction scheduler (CPM and PERT)",
+   "category": "Structures, materials and construction",
+   "level": "Intermediate",
+   "problem": "Find the critical path and expected duration of a small building project.",
+   "users": "Project managers",
+   "method": "Critical Path Method forward and backward pass; PERT expected time and variance; topological sort of the activity network.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "graphs",
+    "topological sort",
+    "classes"
+   ],
+   "appShows": "Gantt chart, critical path highlighted, probability of finishing by a date.",
+   "stretch": "Add resource levelling."
+  },
+  {
+   "id": "P086",
+   "title": "Earned value dashboard",
+   "category": "Structures, materials and construction",
+   "level": "Beginner",
+   "problem": "Is a construction project behind schedule or over budget?",
+   "users": "Project managers",
+   "method": "Earned value management: PV, EV, AC, SPI, CPI and estimate at completion (PMI PMBOK guide).",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "arrays",
+    "methods"
+   ],
+   "appShows": "S-curves of PV, EV and AC, indices and forecast.",
+   "stretch": "Import progress from a spreadsheet CSV."
+  },
+  {
+   "id": "P087",
+   "title": "Concrete strength by the maturity method",
+   "category": "Structures, materials and construction",
+   "level": "Intermediate",
+   "problem": "When can formwork be removed? Estimate in-place strength from temperature history.",
+   "users": "Site engineers",
+   "method": "Nurse-Saul temperature-time factor (ASTM C1074) and a strength-maturity relation calibrated with cube tests.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "regression",
+    "methods"
+   ],
+   "appShows": "Temperature log, maturity curve, predicted strength and safe stripping time.",
+   "stretch": "Use a low-cost temperature logger."
+  },
+  {
+   "id": "P088",
+   "title": "Plane truss analysis",
+   "category": "Structures, materials and construction",
+   "level": "Advanced",
+   "problem": "Find member forces of a roof truss under given loads.",
+   "users": "Structural engineering students",
+   "method": "Direct stiffness method for 2-D trusses (assembly, boundary conditions, Gaussian elimination); method of joints for checking.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "2-D arrays",
+    "linear algebra",
+    "classes"
+   ],
+   "appShows": "Truss drawing with member forces (tension/compression colours), deflected shape in 3D.",
+   "stretch": "Add member design checks to IS 800:2007."
+  },
+  {
+   "id": "P089",
+   "title": "Steel column buckling check",
+   "category": "Structures, materials and construction",
+   "level": "Intermediate",
+   "problem": "Will a steel column buckle under the design load?",
+   "users": "Structural engineering students",
+   "method": "Slenderness ratio, Euler buckling load and IS 800:2007 design compressive stress with buckling class curves.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "methods",
+    "lookup tables",
+    "classes"
+   ],
+   "appShows": "Capacity versus length curve, utilisation ratio.",
+   "stretch": "Select the lightest adequate section from a table."
+  },
+  {
+   "id": "P090",
+   "title": "Wall thermal performance (U-value)",
+   "category": "Structures, materials and construction",
+   "level": "Beginner",
+   "problem": "Which wall material keeps rooms coolest?",
+   "users": "Architects, homeowners",
+   "method": "Layer resistances R = thickness / conductivity plus surface resistances; U = 1 / sum R; comparison with ECBC 2017 envelope requirements.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "ArrayList",
+    "methods"
+   ],
+   "appShows": "U-value per wall assembly, heat gain comparison.",
+   "stretch": "Add thermal mass and time lag."
+  },
+  {
+   "id": "P091",
+   "title": "Soil classification (IS 1498)",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Beginner",
+   "problem": "Classify soil samples from sieve analysis and Atterberg limits.",
+   "users": "Geotechnical lab students",
+   "method": "IS 1498:1970 classification using the plasticity chart and gradation coefficients Cu and Cc.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "SoilGrids 250 m soil properties (ISRIC, CC BY 4.0)",
+     "url": "https://soilgrids.org/"
+    }
+   ],
+   "javaConcepts": [
+    "if-else",
+    "arrays",
+    "methods"
+   ],
+   "appShows": "Grain-size curve, plasticity chart with the sample, soil group symbol.",
+   "stretch": "Map samples across campus."
+  },
+  {
+   "id": "P092",
+   "title": "Bearing capacity of a shallow footing",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Intermediate",
+   "problem": "What load can a footing safely carry on a given soil?",
+   "users": "Foundation designers",
+   "method": "Terzaghi bearing capacity with shape factors; IS 6403:1981; factor of safety.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "methods",
+    "Math functions",
+    "classes"
+   ],
+   "appShows": "Ultimate and safe bearing capacity, variation with footing width.",
+   "stretch": "Add settlement check."
+  },
+  {
+   "id": "P093",
+   "title": "Retaining wall stability",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Intermediate",
+   "problem": "Is a cantilever retaining wall safe against overturning and sliding?",
+   "users": "Structural and geotechnical engineers",
+   "method": "Rankine active earth pressure; factors of safety against overturning, sliding and bearing.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "methods",
+    "if-else"
+   ],
+   "appShows": "Pressure diagram, factors of safety with pass/fail.",
+   "stretch": "Add surcharge and water table."
+  },
+  {
+   "id": "P094",
+   "title": "Consolidation settlement and time",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Intermediate",
+   "problem": "How much and how fast will a clay layer settle under a new building?",
+   "users": "Geotechnical engineers",
+   "method": "Terzaghi one-dimensional consolidation: final settlement from compression index and time factor-degree of consolidation relation.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "methods",
+    "loops",
+    "Math.log10"
+   ],
+   "appShows": "Settlement versus time curve.",
+   "stretch": "Add vertical drains."
+  },
+  {
+   "id": "P095",
+   "title": "Levelling field book reduction",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Beginner",
+   "problem": "Reduce a levelling field book and check closure without hand errors.",
+   "users": "Surveying students",
+   "method": "Rise-and-fall and height-of-instrument methods with arithmetic checks; misclosure and distribution.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "loops",
+    "exceptions"
+   ],
+   "appShows": "Reduced levels table, check results, longitudinal section chart.",
+   "stretch": "Import from a CSV recorded on a phone."
+  },
+  {
+   "id": "P096",
+   "title": "Traverse adjustment by the Bowditch rule",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Intermediate",
+   "problem": "Adjust a closed traverse and plot it on a map.",
+   "users": "Surveying students",
+   "method": "Latitudes and departures, linear misclosure, Bowditch (compass) rule; conversion to map coordinates.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "trigonometry",
+    "arrays"
+   ],
+   "appShows": "Adjusted coordinates, precision ratio, traverse plotted on the map.",
+   "stretch": "Add the transit rule and compare."
+  },
+  {
+   "id": "P097",
+   "title": "Earthwork cut and fill from a DEM",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Intermediate",
+   "problem": "How much earth must be moved to build a road along a chosen alignment?",
+   "users": "Highway engineers",
+   "method": "Ground profile sampled from the DEM along the alignment; cross-sections and volumes by the trapezoidal and prismoidal formulas; mass-haul diagram.",
+   "data": [
+    {
+     "name": "Copernicus GLO-30 DEM (AWS Open Data)",
+     "url": "https://registry.opendata.aws/copernicus-dem/"
+    },
+    {
+     "name": "VIT Innovation Lab Vellore catchment dataset (in this repository)",
+     "url": "https://github.com/parthiban-loganathan/Java/tree/main/site/data/catchment"
+    }
+   ],
+   "javaConcepts": [
+    "arrays",
+    "methods",
+    "classes"
+   ],
+   "appShows": "Profile with formation level, cut/fill volumes, mass-haul diagram.",
+   "stretch": "Optimise the gradeline to balance cut and fill."
+  },
+  {
+   "id": "P098",
+   "title": "Campus water and electricity meter dashboard",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Beginner",
+   "problem": "Spot leaks and wasted energy from daily meter readings.",
+   "users": "Estate office",
+   "method": "Daily consumption series; anomaly detection by z-score against a moving baseline.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    }
+   ],
+   "javaConcepts": [
+    "ArrayList",
+    "statistics",
+    "classes"
+   ],
+   "appShows": "Consumption charts with anomalies flagged, building ranking.",
+   "stretch": "Send a weekly summary file."
+  },
+  {
+   "id": "P099",
+   "title": "Building energy benchmarking",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Beginner",
+   "problem": "Which campus buildings use the most energy per square metre?",
+   "users": "Energy managers",
+   "method": "Energy Performance Index (kWh/m2/year) compared with BEE star rating benchmarks for office buildings.",
+   "data": [
+    {
+     "name": "Field or laboratory measurements collected by the team (publish them with the app)",
+     "url": ""
+    },
+    {
+     "name": "Google Open Buildings footprints (CC BY 4.0 / ODbL)",
+     "url": "https://sites.research.google/open-buildings/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "sorting",
+    "maps"
+   ],
+   "appShows": "EPI per building, star rating band, ranking chart.",
+   "stretch": "Normalise for cooling degree days."
+  },
+  {
+   "id": "P100",
+   "title": "Smart irrigation scheduler for lawns",
+   "category": "Geotechnics, surveying, energy and smart campus",
+   "level": "Intermediate",
+   "problem": "Water campus lawns only when the soil needs it.",
+   "users": "Gardening staff, estate office",
+   "method": "FAO-56 daily soil water balance (ETc, rainfall, readily available water) with Open-Meteo forecast rainfall.",
+   "data": [
+    {
+     "name": "Open-Meteo historical and forecast weather API (CC BY 4.0)",
+     "url": "https://open-meteo.com/"
+    },
+    {
+     "name": "FAO Irrigation and Drainage Paper 56 (crop evapotranspiration)",
+     "url": "https://www.fao.org/3/x0490e/x0490e00.htm"
+    },
+    {
+     "name": "SoilGrids 250 m soil properties (ISRIC, CC BY 4.0)",
+     "url": "https://soilgrids.org/"
+    }
+   ],
+   "javaConcepts": [
+    "classes",
+    "loops",
+    "web APIs (JSON)"
+   ],
+   "appShows": "Soil water chart, irrigate/skip decision for the next days, water saved.",
+   "stretch": "Connect to a soil moisture sensor."
+  }
+ ]
+}
