@@ -25,6 +25,14 @@ cp "$ROOT/projects/projects.json" "$ROOT/projects/projects.schema.json" "$OUT/pr
 mkdir -p "$OUT/problems"
 cp "$ROOT/problems/problems.json" "$OUT/problems/"
 
+if [ -n "${JAVAC_DIST:-}" ] && [ -f "$JAVAC_DIST/compiler.wasm" ]; then
+  echo "== In-browser Java compiler from $JAVAC_DIST"
+  mkdir -p "$OUT/assets/javac"
+  cp "$JAVAC_DIST"/* "$OUT/assets/javac/"
+else
+  echo "== In-browser Java compiler not included (set JAVAC_DIST; built by tools/browser-javac/build.sh)"
+fi
+
 echo "== Starter template demo"
 bash "$ROOT/starter-template/build.sh" "$OUT/starter"
 

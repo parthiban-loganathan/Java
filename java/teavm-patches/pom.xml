@@ -13,7 +13,8 @@
   <description>
     java.util.Scanner (missing in TeaVM), java.util.InputMismatchException, and a Formatter with
     JDK-compatible %n and %f rounding. web-bridge lists this artifact before teavm-classlib, so
-    TeaVM finds these classes first.
+    TeaVM finds these classes first; the in-browser compiler (teavm-javac) gets them added to
+    its class libraries at build time (.github/workflows, browser-javac).
   </description>
 
   <properties>
@@ -24,6 +25,12 @@
     <dependency>
       <groupId>org.teavm</groupId>
       <artifactId>teavm-classlib</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso</artifactId>
       <version>${teavm.version}</version>
       <scope>provided</scope>
     </dependency>

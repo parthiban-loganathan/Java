@@ -40,9 +40,26 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: |
+            25
+            21
           cache: maven
+      - name: Build the lab's class-library additions
+        run: mvn -B -q -f java/pom.xml install -DskipTests
+      - name: Cache the in-browser Java compiler
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: javac-dist
+          key: browser-javac-${{ hashFiles('tools/browser-javac/build.sh', 'java/teavm-patches/src/**') }}
+      - name: Build the in-browser Java compiler (only when its inputs changed)
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          JAVA25_HOME: ${{ env.JAVA_HOME_25_X64 }}
+        run: bash tools/browser-javac/build.sh javac-dist
       - name: Build site
+        env:
+          JAVAC_DIST: javac-dist
         run: bash tools/build-site.sh build/site
       - uses: actions/download-artifact@v4
         with:
