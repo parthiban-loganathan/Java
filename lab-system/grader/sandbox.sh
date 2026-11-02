@@ -4,7 +4,7 @@
 #   sandbox.sh SRC_DIR CASES_DIR OUT_DIR MAIN_CLASS TIMEOUT_SECONDS
 # Writes OUT_DIR/compile.txt, compile.rc and, for every CASES_DIR/<name>.in,
 # <name>.out (stdout, kept up to 64 KB), <name>.err (stderr, up to 16 KB) and <name>.rc (exit code;
-# 137 = killed at the time limit, 153 = output larger than 1 MB).
+# 124 or 137 = stopped at the time limit, 153 = output larger than 1 MB).
 set -u
 SRC="$1"; CASES="$2"; OUT="$3"; MAIN="$4"; LIMIT="$5"
 mkdir -p "$OUT/classes"

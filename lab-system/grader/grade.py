@@ -159,7 +159,7 @@ def grade_exercise(name, lab_dir, tests_root, limit=10, sandbox="docker", image=
             actual = read(os.path.join(out, case + ".out"))
             err = read(os.path.join(out, case + ".err"))
             entry = {"name": case, "scored": scored, "exit_code": rc,
-                     "timed_out": rc == 137,
+                     "timed_out": rc in (124, 137),   # timeout(1): 124, or 137 when killed by SIGKILL
                      "output_too_large": rc == 153 or os.path.getsize(os.path.join(out, case + ".out")) >= 65536
                      if os.path.exists(os.path.join(out, case + ".out")) else False,
                      "actual": actual[:20000], "stderr": err[:4000]}
