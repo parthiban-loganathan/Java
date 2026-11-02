@@ -174,4 +174,5 @@ When the entry is valid:
 | A student's site shows 404 | In their repository: **Settings → Pages → Source: GitHub Actions**, then any commit. |
 | The robot did not comment on a submission | The title must start with `[Submission]`; the Submit page does this automatically. |
 
-Next: [9. Teaching and demonstration plan](09-teaching-plan.md).
+Next: [9. Teaching and demonstration plan](09-teaching-plan.md), and
+[10. Weekly lab submissions and marking](10-weekly-submissions.md) to collect and mark every student's weekly programs.

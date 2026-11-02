@@ -2,6 +2,12 @@
 export const REPO_URL = 'https://github.com/parthiban-loganathan/Java';
 export const CODESPACES_URL = 'https://codespaces.new/parthiban-loganathan/Java';
 
+/** Weekly lab system: the teacher's account and the student template repository (docs/10). */
+export const LAB = {
+  teacher: 'parthiban-loganathan',
+  studentTemplate: 'parthiban-loganathan/java-lab-student',
+};
+
 /** URL of a new GitHub issue from an issue form, with fields pre-filled (field ids as query keys). */
 export function newIssueUrl(template, title, fields = {}) {
   const q = new URLSearchParams({ template, title, ...fields });
@@ -13,6 +19,7 @@ const NAV = [
   ['learn.html', 'Learn Java'],
   ['catchment.html', 'Catchment simulator'],
   ['starter/index.html', 'Starter template'],
+  ['weekly.html', 'Weekly lab'],
   ['problems.html', '100 Problems'],
   ['submit.html', 'Submit'],
   ['projects.html', 'Projects'],

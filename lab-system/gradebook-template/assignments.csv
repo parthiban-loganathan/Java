@@ -1,0 +1,23 @@
+exercise,week,title,due_ist,max_marks
+E01a,2,Interest for financing options,,10
+E01b,2,Three-digit number analysis,,10
+E01c,3,Prime numbers in a range,,10
+E02a,4,Merged daily step counts,,10
+E02b,4,Prime numbers in a 2D grid,,10
+E03a,6,Rectangle class,,10
+E03b,6,ArrayConcatenator class,,10
+E04a,7,Employee bonuses with inheritance,,10
+E04b,7,Game characters with an abstract class,,10
+E05a,7,Washing machine interface,,10
+E05b,7,Unique characters with StringBuilder,,10
+E06a,8,Grade validation with exceptions,,10
+E06b,8,Custom time exceptions,,10
+E07,9,Producer and consumer threads,,10
+E08,9,Prices with tax (files),,10
+E09,9,Sentiment from a file,,10
+E10,9,Speed conversion (files),,10
+E11,10,Bank account serialization,,10
+E12,10,Savings category serialization,,10
+E13,11,Generic record holder,,10
+E14,11,Student registration with ArrayList,,10
+E15,11,Median temperature with HashMap,,10

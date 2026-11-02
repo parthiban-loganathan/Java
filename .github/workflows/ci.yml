@@ -42,6 +42,19 @@ jobs:
           path: build/site
           retention-days: 7
 
+  lab-grader:
+    name: Weekly lab grader in Docker (correct, wrong, broken and hostile programs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker pull -q eclipse-temurin:21-jdk
+      - name: Build test lab from the course solutions and broken samples
+        run: bash lab-system/selftest/make_samples.sh /tmp/selftest
+      - name: Grade in isolated containers
+        run: python3 lab-system/grader/grade.py --lab /tmp/selftest/lab --tests /tmp/selftest/tests --out /tmp/selftest/results --timeout 5
+      - name: Check the grades are what they must be
+        run: python3 lab-system/selftest/verify.py /tmp/selftest/results
+
   jdbc-experiment:
     name: Experiment 16 with a real MySQL server
     runs-on: ubuntu-latest

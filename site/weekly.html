@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weekly Java Lab</title>
+  <meta name="description" content="Save your weekly Java lab programs to your private repository, where they are compiled and tested on Java 21.">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/lab.css">
+</head>
+<body>
+<main>
+  <h1>Weekly Java lab</h1>
+  <p class="muted" style="max-width:920px">Paste your program, press <b>Save to my repository</b>, then <b>Commit changes</b> on GitHub.
+    About a minute later GitHub has compiled your program with Java 21, run it on the official test cases and written the result
+    into your private repository. Every version you save is kept, with the date and time, and your teacher collects them at the deadline.</p>
+
+  <details class="card" id="setup" style="margin-bottom:14px">
+    <summary style="cursor:pointer;font-weight:700">First time? Set up your private lab repository (10 minutes, once)</summary>
+    <ol style="margin-top:10px">
+      <li>Sign in to GitHub. Open <a id="tpl-link" rel="noopener">the lab template</a> (it opens "Create a new repository").
+        <ul><li>Repository name: <code>java-lab-</code> followed by your register number in lower case, e.g. <code>java-lab-24bcl0001</code>.</li>
+            <li>Choose <b>Private</b>. Click <b>Create repository</b>.</li></ul></li>
+      <li>Fill in your details below (name, register number, repository) and press <b>Open student.json</b>; replace the file's text with
+        the text shown, then <b>Commit changes</b>.</li>
+      <li>Press <b>Add my teacher</b>; on GitHub click <b>Add people</b>, type <code id="teacher-name"></code>, add. Only you and your teacher can
+        see your work.</li>
+    </ol>
+  </details>
+
+  <div class="grid cols-2" style="align-items:start">
+    <div class="card">
+      <h3>1. Who are you</h3>
+      <div class="row">
+        <div class="field"><label for="name">Name</label><input type="text" id="name" maxlength="80" placeholder="Asha R"></div>
+        <div class="field"><label for="regno">Register number</label><input type="text" id="regno" maxlength="20" placeholder="24BCL0001"></div>
+      </div>
+      <div class="field"><label for="repo">Your lab repository (username/repository)</label>
+        <input type="text" id="repo" placeholder="asha-r/java-lab-24bcl0001"></div>
+      <div class="row" style="gap:6px">
+        <a class="btn sm" id="student-json" rel="noopener">Open student.json</a>
+        <a class="btn sm" id="add-teacher" rel="noopener">Add my teacher</a>
+        <a class="btn sm" id="my-summary" rel="noopener">My results</a>
+        <a class="btn sm" id="my-history" rel="noopener">Run history</a>
+      </div>
+      <pre id="student-json-text" class="small" style="margin-top:8px"></pre>
+      <p class="small muted" style="margin:0">These details are remembered in this browser only, to save typing next week.</p>
+
+      <h3 style="margin-top:18px">2. Which exercise</h3>
+      <div class="row">
+        <div class="field"><label for="exercise">Exercise</label><select id="exercise"></select></div>
+        <div class="field" id="custom-box" hidden><label for="custom">Code given by your teacher</label>
+          <input type="text" id="custom" placeholder="W05-Q1" maxlength="32"></div>
+      </div>
+      <div id="ex-info" class="small"></div>
+    </div>
+
+    <div class="card">
+      <h3>3. Your program</h3>
+      <textarea id="code" rows="18" spellcheck="false" placeholder="public class Main {&#10;    public static void main(String[] args) {&#10;        ...&#10;    }&#10;}"></textarea>
+      <div class="field" style="margin-top:8px"><label for="own-input">Your own keyboard input (optional, run but not marked)</label>
+        <textarea id="own-input" rows="3" spellcheck="false"></textarea></div>
+      <div id="checks" class="small"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="save" type="button">Save to my repository</button>
+        <button class="btn" id="save-input" type="button">Save my input</button>
+        <a class="btn" id="edit-existing" rel="noopener">Edit the saved file</a>
+        <a class="btn" id="ex-result" rel="noopener">Result of this exercise</a>
+      </div>
+      <div id="status" class="small" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>What happens after you commit</h3>
+    <ol class="small" style="margin-bottom:0">
+      <li>GitHub Actions starts a fresh, isolated computer with Java 21 (no internet access for your program, 10 seconds per test).</li>
+      <li>Your program is compiled. Compiler errors are reported with the line number.</li>
+      <li>It is run with each official input of the exercise and its output is compared with the reference output (spaces at line ends ignored).</li>
+      <li>The report <code>results/&lt;exercise&gt;.md</code> shows which tests passed and, for the others, your output beside the expected output.</li>
+      <li>At each deadline your teacher's gradebook collects the latest version, grades it again with its own copy of the tests, and adds the teacher's marks.</li>
+    </ol>
+  </div>
+</main>
+<script type="module">
+  import { chrome, fetchJson, escapeHtml, LAB } from './assets/js/common.js';
+  import { safeGet, safeSet } from './assets/js/common.js';
+  chrome('weekly.html');
+  const $ = id => document.getElementById(id);
+  const catalog = await fetchJson('course/catalog.json');
+
+  $('tpl-link').href = `https://github.com/${LAB.studentTemplate}/generate`;
+  $('teacher-name').textContent = LAB.teacher;
+  $('exercise').innerHTML =
+    '<optgroup label="Lab experiments">' + catalog.filter(p => p.kind === 'experiment' && p.id !== 'E16')
+      .map(p => `<option value="${p.id}">${p.id}: ${escapeHtml(p.title.replace(/^Experiment [0-9a-c]+: /, ''))}</option>`).join('') + '</optgroup>' +
+    '<optgroup label="Lessons (practice)">' + catalog.filter(p => p.kind === 'lesson')
+      .map(p => `<option value="${p.id}">${p.id}: ${escapeHtml(p.title)}</option>`).join('') + '</optgroup>' +
+    '<option value="__custom">Other: a code given by my teacher</option>';
+
+  for (const id of ['name', 'regno', 'repo']) {
+    $(id).value = safeGet('weekly-' + id) || '';
+    $(id).addEventListener('input', () => { safeSet('weekly-' + id, $(id).value.trim()); update(); });
+  }
+  if (!$('repo').value) $('setup').open = true;
+
+  const exercise = () => $('exercise').value === '__custom' ? $('custom').value.trim() : $('exercise').value;
+  const repo = () => $('repo').value.trim().replace(/^https:\/\/github\.com\//, '').replace(/\/+$/, '');
+  const repoOk = () => /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repo());
+  const regnoOk = () => /^[0-9]{2}[A-Za-z]{3}[0-9]{4}$/.test($('regno').value.trim());
+  const istNow = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 16).replace('T', ' ');
+
+  function fileName(code) {
+    const m = code.match(/public\s+(?:final\s+|abstract\s+)*class\s+(\w+)/);
+    return (m ? m[1] : 'Main') + '.java';
+  }
+
+  function withHeader(code) {
+    const header = `// Name: ${$('name').value.trim()} | Reg. No.: ${$('regno').value.trim().toUpperCase()} | Exercise: ${exercise()} | Saved: ${istNow()} IST from the lab website`;
+    return header + '\n' + code.replace(/^\/\/ Name: .*\| Reg\. No\.: .*\n/, '');
+  }
+
+  function update() {
+    const ex = exercise();
+    $('custom-box').hidden = $('exercise').value !== '__custom';
+    const p = catalog.find(c => c.id === ex);
+    $('ex-info').innerHTML = p ? `<a href="learn.html#${p.id}">Read the exercise and run the reference program</a>` +
+      (p.browser ? '' : ' <span class="badge warn">JDK only in the browser page; tested normally here</span>') : '';
+    $('student-json-text').textContent = JSON.stringify({ name: $('name').value.trim(), regno: $('regno').value.trim().toUpperCase() }, null, 2);
+    const r = repo();
+    const set = (id, url) => { const a = $(id); if (repoOk() && url) { a.href = url; a.style.opacity = 1; } else { a.removeAttribute('href'); a.style.opacity = .5; } };
+    set('student-json', `https://github.com/${r}/edit/main/student.json`);
+    set('add-teacher', `https://github.com/${r}/settings/access`);
+    set('my-summary', `https://github.com/${r}/blob/main/results/summary.md`);
+    set('my-history', `https://github.com/${r}/actions`);
+    const code = $('code').value;
+    set('edit-existing', ex ? `https://github.com/${r}/edit/main/lab/${encodeURIComponent(ex)}/${fileName(code)}` : null);
+    set('ex-result', ex ? `https://github.com/${r}/blob/main/results/${encodeURIComponent(ex)}.md` : null);
+    const issues = [];
+    if (!$('name').value.trim()) issues.push('Enter your name.');
+    if (!regnoOk()) issues.push('Register number should look like 24BCL0001.');
+    if (!repoOk()) issues.push('Repository should look like username/java-lab-24bcl0001.');
+    if (!/^[A-Za-z0-9_-]{1,32}$/.test(ex)) issues.push('Choose an exercise (or type the code your teacher gave you).');
+    if (!/class\s+\w+/.test(code)) issues.push('Paste a Java program (it must contain a class).');
+    else if (!/static\s+void\s+main\s*\(/.test(code)) issues.push('Your program needs a main method: public static void main(String[] args).');
+    $('checks').innerHTML = issues.length ? `<div class="notice warn">${issues.map(escapeHtml).join('<br>')}</div>`
+      : `<div class="notice ok">Ready. It will be saved as <code>lab/${escapeHtml(ex)}/${escapeHtml(fileName(code))}</code>.</div>`;
+    $('save').disabled = issues.length > 0;
+    $('save-input').disabled = !repoOk() || !ex || !$('own-input').value.trim();
+  }
+
+  async function saveFile(path, content) {
+    let copied = false;
+    try { await navigator.clipboard.writeText(content); copied = true; } catch { copied = false; }
+    const url = `https://github.com/${repo()}/new/main?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(content)}`;
+    window.open(url.length < 7500 ? url : `https://github.com/${repo()}/new/main?filename=${encodeURIComponent(path)}`, '_blank', 'noopener');
+    $('status').innerHTML = `<div class="notice">GitHub opened in a new tab with the file name <code>${escapeHtml(path)}</code>.
+      ${copied ? 'Your code is also on the clipboard: if the editor is empty, click in it and press <b>Ctrl+V</b>.' : 'If the editor is empty, copy your code from this page and paste it.'}
+      Then press <b>Commit changes</b> (twice). If GitHub says the file already exists, use <b>Edit the saved file</b> instead,
+      replace its text and commit. Results appear in about a minute under <b>Result of this exercise</b>.</div>`;
+  }
+
+  $('save').addEventListener('click', () => saveFile(`lab/${exercise()}/${fileName($('code').value)}`, withHeader($('code').value)));
+  $('save-input').addEventListener('click', () => saveFile(`lab/${exercise()}/input.txt`, $('own-input').value));
+  for (const id of ['exercise', 'custom', 'code', 'own-input']) $(id).addEventListener('input', update);
+  update();
+</script>
+</body>
+</html>

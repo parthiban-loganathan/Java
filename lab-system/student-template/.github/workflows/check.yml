@@ -1,0 +1,38 @@
+name: Check my lab programs
+
+on:
+  push:
+    paths: ['lab/**', 'student.json', 'lab-tools/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Java 21
+        run: docker pull -q eclipse-temurin:21-jdk
+      - name: Compile and test every exercise (isolated container, no network)
+        run: python3 lab-tools/grader/grade.py --lab lab --tests lab-tools/tests --out results
+      - name: Show the summary on this page
+        run: cat results/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Save the results in the repository
+        run: |
+          git config user.name "lab-checker"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "Lab results [skip ci]"
+          for i in 1 2 3 4 5; do
+            if git pull -q --rebase origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"; then exit 0; fi
+            sleep $((i * 3))
+          done
+          exit 1

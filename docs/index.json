@@ -58,5 +58,11 @@
     "title": "9. Teaching and demonstration plan",
     "file": "09-teaching-plan.md",
     "repoPath": "docs/"
+  },
+  {
+    "id": "10-weekly-submissions",
+    "title": "10. Weekly lab submissions and marking",
+    "file": "10-weekly-submissions.md",
+    "repoPath": "docs/"
   }
 ]

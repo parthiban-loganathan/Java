@@ -40,6 +40,12 @@ them, and the project work runs from week 6.
 
 **Check**: What does `;` do? Why is `7 / 2` equal to 3? Which type would you use for a span in metres?
 
+## Weekly submissions (from week 2)
+
+Every experiment is submitted through the website's **Weekly lab** page into each student's private repository and
+collected by your gradebook at the deadline; set it up once with [10. Weekly lab submissions](10-weekly-submissions.md).
+Do Part B (student set-up, 10 minutes) at the end of week 1 or during GitHub session 1.
+
 ## Week 2. Arithmetic, text and keyboard input (L03-L05, E01a, E01b)
 
 **Demonstrate**: in L05 change the *Input* box (span 6 → 8) and run again; show that the same program works for any

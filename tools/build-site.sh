@@ -42,5 +42,8 @@ with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as z:
             z.write(full, os.path.join("civiltech-innovation-starter", os.path.relpath(full, src)))
 PY
 
+echo "== Weekly lab system templates (student and gradebook repositories)"
+python3 "$ROOT/lab-system/package.py" "$ROOT/course" "$OUT/downloads"
+
 touch "$OUT/.nojekyll"
 echo "Site ready: $OUT ($(du -sh "$OUT" | cut -f1))"
