@@ -1,0 +1,6 @@
+Cube 1: 39.11 N/mm2
+Cube 2: 39.11 N/mm2
+Cube 3: 40.00 N/mm2
+Mean strength: 39.41 N/mm2
+Lowest cube: 1
+Result: ACCEPTED

@@ -1,0 +1,2 @@
+Sum of digits: 11
+Parity: Odd

@@ -1,0 +1,3 @@
+Runoff coefficient C = 0.95
+Peak runoff Q = 79.167 m3/s
+Culvert class: large

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Java Lab</title>
+  <meta name="description" content="Type, compile and run Java in the browser; submit lab assessments with your register number.">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/lab.css">
+  <link rel="stylesheet" href="assets/vendor/highlight/github.min.css" id="hl-light">
+  <link rel="stylesheet" href="assets/vendor/highlight/github-dark.min.css" id="hl-dark" disabled>
+  <script src="assets/vendor/marked/marked.umd.js"></script>
+  <script src="assets/vendor/highlight/highlight.min.js"></script>
+  <script src="assets/vendor/ace/ace.js"></script>
+  <style>
+    .lab-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: start; }
+    .lab-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: start; margin-top: 16px; }
+    #editor { height: 440px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+    #statement { max-height: 760px; overflow: auto; }
+    .out { white-space: pre-wrap; min-height: 80px; max-height: 340px; overflow: auto; }
+    .out .err { color: var(--bad); }
+    .case { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+    .case pre { max-height: 180px; overflow: auto; margin: 4px 0; font-size: .82rem; }
+    .case .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+    #package { font-family: var(--mono); font-size: .72rem; min-height: 120px; }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; max-width: 92vw;
+             background: var(--bad); color: #fff; padding: 10px 16px; border-radius: 8px; box-shadow: var(--shadow); }
+    @media (max-width: 980px) { .lab-top, .lab-main, .case .cols { grid-template-columns: 1fr; } #editor { height: 360px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Java Lab</h1>
+  <div id="session-banner" class="notice">Loading the lab status...</div>
+
+  <div class="lab-top">
+    <form class="card" id="identity" autocomplete="off">
+      <h3>1. Who are you?</h3>
+      <div class="row">
+        <div class="field"><label for="regno">Register number</label>
+          <input type="text" id="regno" maxlength="20" placeholder="24BCL0123" style="text-transform:uppercase"></div>
+        <div class="field"><label for="name">Full name</label>
+          <input type="text" id="name" maxlength="80" placeholder="As in the class register"></div>
+      </div>
+      <div class="row" style="align-items:center">
+        <button class="btn primary" id="start" type="submit">Start</button>
+        <span id="identity-msg" class="small muted"></span>
+      </div>
+    </form>
+    <div class="card">
+      <h3>2. Choose the work</h3>
+      <div class="row">
+        <div class="field"><label for="mode">Assessment</label><select id="mode"></select></div>
+        <div class="field"><label for="question">Question</label><select id="question"></select></div>
+      </div>
+      <p class="small muted" id="mode-help" style="margin-bottom:0"></p>
+    </div>
+  </div>
+
+  <div class="lab-main" id="workspace" hidden>
+    <div class="card" id="statement"></div>
+    <div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">3. Type your program <span class="small muted" id="file-name"></span></h3>
+          <span class="small muted" id="compiler-status"></span>
+        </div>
+        <div id="editor" aria-label="Java editor"></div>
+        <p class="small muted" style="margin:6px 0 0">Type the program yourself. Pasting from outside the editor and
+          dropping text are blocked and recorded. Everything you do in this editor (typing, deleting, runs, leaving the
+          page) is recorded and sent to the teacher with your submission.</p>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="run" type="button" disabled>Run</button>
+          <button class="btn" id="check" type="button" disabled>Check with sample cases</button>
+          <button class="btn" id="submit" type="button" disabled>Submit</button>
+        </div>
+      </div>
+      <div class="card io" style="margin-top:16px">
+        <div class="head"><b>Keyboard input (what you would type when the program runs)</b></div>
+        <textarea id="stdin" rows="4" spellcheck="false" placeholder="One value per line, e.g.&#10;500000&#10;8.5"></textarea>
+        <div class="head"><b>Output</b><span class="small muted" id="run-info"></span></div>
+        <pre class="out" id="output">Press Run.</pre>
+        <div id="check-results"></div>
+      </div>
+      <div class="card" id="submit-panel" style="margin-top:16px" hidden>
+        <h3>4. Send the submission</h3>
+        <ol class="small" style="padding-left:18px">
+          <li>Press <b>Copy package</b>.</li>
+          <li>Press <b>Open GitHub</b> (sign in if asked). The form already has the session and question.</li>
+          <li>Click in the box <b>Package</b>, paste (Ctrl+V), then press <b>Create</b> (or <b>Submit new issue</b>).</li>
+          <li>Within about a minute a reply on that page says <b>accepted</b> or <b>rejected</b>, with the time.</li>
+        </ol>
+        <div class="row">
+          <button class="btn primary" id="copy-package" type="button">Copy package</button>
+          <a class="btn" id="open-github" rel="noopener" target="_blank">Open GitHub</a>
+          <a class="btn" id="my-submissions" rel="noopener" target="_blank">My submissions</a>
+        </div>
+        <p class="small" id="receipt"></p>
+        <textarea id="package" readonly rows="6" spellcheck="false" aria-label="Encrypted submission package"></textarea>
+        <p class="small muted" style="margin-bottom:0">The package is encrypted with the teacher's public key: the GitHub
+          issue is public, but only the teacher can read your code, name and register number. You may submit again
+          while the assessment is open; the last accepted submission counts.</p>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3>Your activity in this question</h3>
+        <div class="stats small" id="stats"></div>
+        <p class="small muted" style="margin-bottom:0">Saved in this browser under your register number.
+          <button class="btn sm" id="forget" type="button">Remove my work from this computer</button></p>
+      </div>
+    </div>
+  </div>
+</main>
+<script type="module" src="assets/js/lab.js"></script>
+</body>
+</html>

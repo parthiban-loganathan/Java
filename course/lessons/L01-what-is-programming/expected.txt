@@ -1,0 +1,4 @@
+Hello, Civil Engineer
+Bending moment of a simply supported beam:
+M = w L^2 / 8 = 67.5 kN m
+print keeps the cursor on the same line, println ends the line.

@@ -1,0 +1,2 @@
+Area: 96
+Perimeter: 40

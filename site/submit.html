@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Submit a Project</title>
+  <meta name="description" content="Submit a student team's app to the VIT Civil Engineering Innovation Lab project directory.">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/lab.css">
+</head>
+<body>
+<main>
+  <h1>Submit your project</h1>
+  <p class="muted" style="max-width:900px">Fill in the form. The page checks every field against the lab's rules and builds the
+    directory entry. Then press <b>Open submission on GitHub</b>: a GitHub issue opens with everything filled in; press
+    <b>Submit new issue</b> there. An automatic check replies within minutes, and a maintainer adds the project to the
+    <a href="projects.html">directory</a> after looking at the live demo. You need to be signed in to GitHub.</p>
+
+  <div class="grid cols-2" style="align-items:start">
+    <form class="card" id="form" autocomplete="off">
+      <div class="row">
+        <div class="field"><label for="problemId">Problem</label><select id="problemId"></select></div>
+        <div class="field"><label for="status">Status</label>
+          <select id="status"><option>in-progress</option><option>completed</option><option>idea</option></select></div>
+      </div>
+      <div class="field"><label for="title">App title</label><input type="text" id="title" maxlength="100" placeholder="Rooftop rainwater harvesting for VIT hostels"></div>
+      <div class="field"><label for="id">Short id (lower-case words joined by -)</label><input type="text" id="id" placeholder="rooftop-rainwater-vit-hostels"></div>
+      <div class="row">
+        <div class="field"><label for="team">Team name</label><input type="text" id="team" placeholder="Team 7, Batch 2026"></div>
+        <div class="field"><label for="academicYear">Academic year</label><input type="text" id="academicYear" value="2026-2027"></div>
+      </div>
+      <div class="field"><label for="members">GitHub usernames (comma separated, optional)</label><input type="text" id="members" placeholder="user-one, user-two"></div>
+      <div class="field"><label for="category">Category</label><select id="category"></select></div>
+      <div class="field"><label for="summary">Summary (30-400 characters): problem and what the app does</label><textarea id="summary" rows="3"></textarea></div>
+      <div class="field"><label for="javaRole">What the Java code computes (10-300 characters)</label><textarea id="javaRole" rows="2"></textarea></div>
+      <div class="field"><label for="repository">Repository URL</label><input type="text" id="repository" placeholder="https://github.com/user-one/rainwater-harvesting"></div>
+      <div class="field"><label for="demo">Live demo URL (GitHub Pages)</label><input type="text" id="demo" placeholder="https://user-one.github.io/rainwater-harvesting/"></div>
+      <div class="field"><label>Datasets (name, URL, licence)</label><div id="datasets"></div>
+        <button type="button" class="btn sm" id="add-dataset" style="margin-top:6px">Add dataset</button></div>
+      <div class="field"><label for="tags">Tags (comma separated, optional)</label><input type="text" id="tags" placeholder="Java, Chart.js, Leaflet"></div>
+    </form>
+
+    <div class="card" style="position:sticky;top:70px">
+      <h3>Check</h3>
+      <div id="errors" class="small"></div>
+      <h3>Directory entry</h3>
+      <pre id="preview" style="max-height:360px;font-size:.8rem"></pre>
+      <div class="row">
+        <a class="btn primary" id="open-issue" rel="noopener">Open submission on GitHub</a>
+        <button class="btn" id="copy" type="button">Copy JSON</button>
+      </div>
+      <p class="small muted" style="margin-bottom:0">Nothing is sent until you press <b>Submit new issue</b> on GitHub.
+        Use GitHub usernames and team names only; do not include phone numbers or e-mail addresses.</p>
+    </div>
+  </div>
+</main>
+<script type="module">
+  import { chrome, fetchJson, escapeHtml, newIssueUrl } from './assets/js/common.js';
+  chrome('submit.html');
+  const $ = id => document.getElementById(id);
+  const [schema, bank] = await Promise.all([fetchJson('projects/projects.schema.json'), fetchJson('problems/problems.json')]);
+  const itemSchema = schema.properties.projects.items;
+
+  $('problemId').innerHTML = '<option value="OWN">OWN: my own idea</option>' +
+    bank.problems.map(p => `<option value="${p.id}">${p.id}: ${escapeHtml(p.title)}</option>`).join('');
+  $('category').innerHTML = itemSchema.properties.category.enum.filter(c => c !== 'Template').map(c => `<option>${escapeHtml(c)}</option>`).join('');
+  const BANK_TO_DIR = {
+    'Water resources and hydrology': 'Water resources', 'Urban flooding and drainage': 'Hydrology and flood',
+    'Water supply, sanitation and wastewater': 'Water resources', 'Environmental quality: air, water, noise': 'Environment and waste',
+    'Solid waste and circular economy': 'Environment and waste', 'Climate change, heat and adaptation': 'Climate change and adaptation',
+    'Disasters and resilience': 'Disaster risk', 'Transportation and roads': 'Transportation',
+    'Structures, materials and construction': 'Structures and materials', 'Geotechnics, surveying, energy and smart campus': 'Geotechnical',
+  };
+  const params = new URLSearchParams(location.search);
+  if (params.get('problem')) {
+    $('problemId').value = params.get('problem');
+    const p = bank.problems.find(x => x.id === params.get('problem'));
+    if (p) { $('title').value = p.title; $('category').value = BANK_TO_DIR[p.category] || 'Other';
+             p.data.filter(d => d.url).forEach(d => addDataset(d.name, d.url, '')); }
+  }
+
+  function addDataset(name = '', url = '', licence = '') {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.style.marginBottom = '6px';
+    row.innerHTML = `<input type="text" placeholder="name" value="${escapeHtml(name)}" style="flex:2 1 160px">
+      <input type="text" placeholder="https://..." value="${escapeHtml(url)}" style="flex:2 1 160px">
+      <input type="text" placeholder="licence, e.g. CC BY 4.0" value="${escapeHtml(licence)}" style="flex:1 1 110px">
+      <button type="button" class="btn sm" aria-label="Remove dataset">&times;</button>`;
+    row.querySelector('button').addEventListener('click', () => { row.remove(); update(); });
+    row.querySelectorAll('input').forEach(i => i.addEventListener('input', update));
+    $('datasets').append(row);
+  }
+  $('add-dataset').addEventListener('click', () => { addDataset(); update(); });
+  if (!$('datasets').children.length) addDataset();
+
+  const slug = s => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
+  let idTouched = false;
+  $('id').addEventListener('input', () => { idTouched = true; });
+  $('title').addEventListener('input', () => { if (!idTouched) $('id').value = slug($('title').value); });
+  if (!$('id').value && $('title').value) $('id').value = slug($('title').value);
+
+  function entry() {
+    const list = v => v.split(',').map(s => s.trim()).filter(Boolean);
+    const e = {
+      id: $('id').value.trim(), problemId: $('problemId').value, title: $('title').value.trim(), team: $('team').value.trim(),
+      members: list($('members').value).map(m => m.replace(/^@/, '')), academicYear: $('academicYear').value.trim(),
+      category: $('category').value, status: $('status').value, summary: $('summary').value.trim(),
+      javaRole: $('javaRole').value.trim(), repository: $('repository').value.trim().replace(/\/+$/, ''),
+      demo: $('demo').value.trim(),
+      datasets: [...$('datasets').children].map(r => { const [n, u, l] = r.querySelectorAll('input'); return { name: n.value.trim(), url: u.value.trim(), licence: l.value.trim() }; })
+        .filter(d => d.name || d.url || d.licence),
+      tags: list($('tags').value),
+    };
+    if (!e.demo) delete e.demo;
+    if (!e.members.length) delete e.members;
+    if (!e.tags.length) delete e.tags;
+    return e;
+  }
+
+  // same rules as tools/validate_projects.py
+  function check(value, s, path, errors) {
+    const t = s.type;
+    const ok = { object: v => v && typeof v === 'object' && !Array.isArray(v), array: Array.isArray, string: v => typeof v === 'string' };
+    if (ok[t] && !ok[t](value)) { errors.push(`${path}: expected ${t}`); return; }
+    if (t === 'object') {
+      for (const k of s.required || []) if (!(k in value) || value[k] === '') errors.push(`${path}${path ? '.' : ''}${k}: required`);
+      for (const [k, v] of Object.entries(value)) if (s.properties?.[k]) check(v, s.properties[k], `${path}${path ? '.' : ''}${k}`, errors);
+    } else if (t === 'array') {
+      if (s.maxItems != null && value.length > s.maxItems) errors.push(`${path}: at most ${s.maxItems} items`);
+      value.forEach((x, i) => check(x, s.items || {}, `${path}[${i + 1}]`, errors));
+    } else if (t === 'string' && value !== '') {
+      if (s.minLength != null && value.length < s.minLength) errors.push(`${path}: at least ${s.minLength} characters (now ${value.length})`);
+      if (s.maxLength != null && value.length > s.maxLength) errors.push(`${path}: at most ${s.maxLength} characters`);
+      if (s.pattern && !new RegExp(s.pattern).test(value)) errors.push(`${path}: "${value}" is not in the expected format`);
+      if (s.enum && !s.enum.includes(value)) errors.push(`${path}: not an allowed value`);
+    }
+  }
+
+  function update() {
+    const e = entry();
+    const errors = [];
+    check(e, itemSchema, '', errors);
+    if (!e.datasets.length) errors.push('datasets: list at least one dataset (use "Team field measurements" for your own data)');
+    $('preview').textContent = JSON.stringify(e, null, 2);
+    $('errors').innerHTML = errors.length
+      ? `<div class="notice warn"><b>${errors.length} thing(s) to fix:</b><ul style="margin:6px 0 0 18px;padding:0">${errors.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>`
+      : '<div class="notice ok">All checks passed. Open the submission on GitHub.</div>';
+    const a = $('open-issue');
+    if (errors.length) { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); a.style.opacity = .5; }
+    else {
+      a.href = newIssueUrl('project-submission.yml', `[Submission] ${e.problemId}: ${e.title}`,
+        { problem_id: e.problemId, repository: e.repository, demo: e.demo || '', entry: JSON.stringify(e, null, 2) });
+      a.removeAttribute('aria-disabled'); a.style.opacity = 1;
+    }
+  }
+  $('form').addEventListener('input', update);
+  $('form').addEventListener('change', update);
+  $('copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('preview').textContent); $('copy').textContent = 'Copied'; }
+    catch { $('copy').textContent = 'Select and copy manually'; }
+    setTimeout(() => { $('copy').textContent = 'Copy JSON'; }, 1500);
+  });
+  update();
+</script>
+</body>
+</html>

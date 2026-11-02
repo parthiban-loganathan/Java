@@ -1,0 +1,84 @@
+name: Lab session control
+
+# Teacher only (needs write access to the repository): Actions -> Lab session control -> Run workflow.
+# Opens or closes a Java Lab assessment by writing lab/control.json. The time of pressing
+# "Run workflow" is recorded; submissions created on GitHub after a close are rejected.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: open or close
+        type: choice
+        options: [open, close]
+        default: open
+      session:
+        description: Session name, e.g. W05 (close with this empty = close everything that is open)
+        type: string
+        required: false
+      questions:
+        description: "Open only: question ids separated by spaces, e.g. Q01 Q02 E05a (empty = keep the session's questions)"
+        type: string
+        required: false
+      minutes:
+        description: "Open only: close automatically after this many minutes (0 = stay open until you close)"
+        type: number
+        default: 0
+      title:
+        description: "Open only, optional: a title shown to students, e.g. Week 5 - loops"
+        type: string
+        required: false
+
+permissions:
+  contents: write
+  actions: read
+  issues: write
+
+concurrency:
+  group: lab-control
+  cancel-in-progress: false
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Time the button was pressed
+        id: time
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "now=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)" >> "$GITHUB_OUTPUT"
+      - name: Labels used by submissions (created once)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create lab-submission --color 0b6e8a --description "Java Lab submission" 2>/dev/null || true
+          gh label create lab-accepted --color 1d7a46 --description "Lab submission accepted" 2>/dev/null || true
+          gh label create lab-rejected --color b3261e --description "Lab submission rejected" 2>/dev/null || true
+          gh label create lab-accept-late --color 9a5b00 --description "Teacher: accept although late" 2>/dev/null || true
+          gh label create lab-ignore --color 5a6575 --description "Teacher: leave out of marking" 2>/dev/null || true
+      - name: Update lab/control.json
+        env:
+          ACTION: ${{ inputs.action }}
+          SESSION: ${{ inputs.session }}
+          QUESTIONS: ${{ inputs.questions }}
+          MINUTES: ${{ inputs.minutes }}
+          TITLE: ${{ inputs.title }}
+          NOW: ${{ steps.time.outputs.now }}
+        run: |
+          python3 tools/lab/control.py "$ACTION" --session "$SESSION" --questions "$QUESTIONS" \
+            --minutes "${MINUTES%.*}" --title "$TITLE" --now "$NOW" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Save
+        env:
+          ACTION: ${{ inputs.action }}
+          SESSION: ${{ inputs.session }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lab/control.json
+          git commit -q -m "Lab: $ACTION ${SESSION:-all open sessions}"
+          for i in 1 2 3 4 5; do
+            git push -q origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep $((i * 2)); git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          done
+          exit 1

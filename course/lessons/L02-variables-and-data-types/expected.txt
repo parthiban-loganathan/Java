@@ -1,0 +1,15 @@
+byte    floorsBelowGround  = 2
+short   spanMillimetres    = 6000
+int     numberOfBars       = 4
+long    designLifeSeconds  = 1576800000
+float   coverMetres        = 0.025
+double  spanMetres         = 6.0
+char    concreteGradeLetter= M
+boolean isDoublyReinforced = false
+Integer.MAX_VALUE     = 2147483647
+Integer.MAX_VALUE + 1 = -2147483648
+0.1 + 0.2 = 0.30000000000000004
+Self-weight of 300 x 500 beam = 22.499999999999996 kN
+Rounded for the report      = 22.50 kN
+(int) 3.4 = 3, Math.round(3.4) = 3, Math.ceil(3.4) = 4
+var storeys = 12

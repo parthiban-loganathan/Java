@@ -1,0 +1,10 @@
+SPT N values: [8, 11, 15, 18, 24, 31, 42, 50]
+readings = 8
+mean N = 24.88, max N = 50, min N = 8
+first N >= 30 at reading index 5
+after add(0, 4) and set(1, 6): [4, 6, 11, 15, 18, 24, 31, 42, 50]
+after remove(2) (an index):   [4, 6, 15, 18, 24, 31, 42, 50]
+after remove(value 50):       [4, 6, 15, 18, 24, 31, 42]
+contains 18? true, indexOf(18) = 3
+sorted copy: [4, 6, 15, 18, 24, 31, 42]
+Vector [12.5, 7.5, 3.0] size 3, element 1 = 7.5

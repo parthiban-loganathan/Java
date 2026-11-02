@@ -1,0 +1,29 @@
+name: Lab submission check
+
+# Runs when a student creates a "Lab submission" issue (from the Java Lab page): accepts or
+# rejects it by GitHub's creation time and lab/control.json, keeps a copy of the encrypted
+# package in a bot comment, labels, closes and locks the issue. See tools/lab/intake.py.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+jobs:
+  intake:
+    if: startsWith(github.event.issue.title, '[Lab]') || contains(github.event.issue.labels.*.name, 'lab-submission')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools/lab
+            lab
+      - name: Check and record the submission
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 tools/lab/intake.py

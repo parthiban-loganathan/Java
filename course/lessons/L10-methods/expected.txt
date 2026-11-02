@@ -1,0 +1,6 @@
+Rational method: Q = 1.458 m^3/s
+Kirpich Tc = 24.5 min
+area(0.3)      = 0.2827 m^2 (circle)
+area(0.3, 0.5) = 0.1500 m^2 (rectangle)
+after doubleAll: [3.0, 4.0, 6.5]
+after tryToChange: bars = 4

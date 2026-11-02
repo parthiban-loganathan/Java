@@ -1,0 +1,14 @@
+target/
+build/
+dist/
+starter-template/dist/
+android-app/.gradle/
+android-app/app/build/
+android-app/local.properties
+.idea/
+*.iml
+.vscode/
+*.class
+*.ser
+__pycache__/
+.DS_Store

@@ -1,0 +1,41 @@
+name: Lab submission
+description: Submit a Java Lab assessment. Make the package on the Java Lab page first (Submit button).
+title: "[Lab] "
+labels: ["lab-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Paste the package from the **Java Lab** page into the box **Package**, then press **Create**.
+        The package is encrypted: only the teacher can read your code, name and register number.
+        A reply below says within about a minute whether the submission was **accepted** (the time GitHub records
+        for this issue decides). Do not edit the issue afterwards: the reply keeps the copy that counts.
+  - type: input
+    id: session
+    attributes:
+      label: Session
+      description: Filled in by the Java Lab page.
+    validations:
+      required: true
+  - type: input
+    id: question
+    attributes:
+      label: Question
+      description: Filled in by the Java Lab page.
+    validations:
+      required: true
+  - type: input
+    id: receipt
+    attributes:
+      label: Receipt
+      description: Filled in by the Java Lab page (16 characters).
+    validations:
+      required: false
+  - type: textarea
+    id: package
+    attributes:
+      label: Package
+      description: Paste the whole package here (Ctrl+V), from -----BEGIN LAB SUBMISSION----- to -----END LAB SUBMISSION-----.
+      render: text
+    validations:
+      required: true

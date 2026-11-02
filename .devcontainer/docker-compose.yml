@@ -1,0 +1,21 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/base:bookworm
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+    # share the database container's network so MySQL is reachable at localhost:3306
+    network_mode: service:db
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # creates company_db and the employees table of Experiment 16 on first start
+      - ../course/experiments/E16-employee-jdbc/setup.sql:/docker-entrypoint-initdb.d/setup.sql:ro
+
+volumes:
+  mysql-data:

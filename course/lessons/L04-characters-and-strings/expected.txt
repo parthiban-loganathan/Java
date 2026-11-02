@@ -1,0 +1,15 @@
+'B' has code 66; after ++ the char is C
+'7' - '0' = 7
+isDigit('7') = true, toUpperCase('m') = M
+length         = 12
+charAt(0)      = C
+substring(9,12)= M25
+indexOf("M")   = 9
+toUpperCase    = CONCRETE M25
+replace        = Concrete M30
+original s     = Concrete M25   (strings never change)
+a.equals(b) = true, a == b = false
+Borehole BH-01: depth 12.5 m, N = 23
+Tab	separated, a "quoted" word, a backslash \
+[3.141593] [3.14] [    3.14] [M25     ] [42] [X]
+BH-01 at 12.5 m

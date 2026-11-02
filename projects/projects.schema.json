@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Civil Engineering Innovation Lab project directory",
+  "type": "object",
+  "required": [
+    "projects"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "team",
+          "academicYear",
+          "category",
+          "status",
+          "summary",
+          "javaRole",
+          "repository",
+          "datasets"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "unique, lower-case, words joined by -"
+          },
+          "problemId": {
+            "type": "string",
+            "pattern": "^(P(0[0-9][1-9]|0[1-9]0|100)|OWN)$",
+            "description": "problem bank id P001-P100, or OWN"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 100
+          },
+          "team": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{1,39}$",
+              "description": "GitHub usernames (optional)"
+            },
+            "maxItems": 8
+          },
+          "academicYear": {
+            "type": "string",
+            "pattern": "^20[0-9]{2}-20[0-9]{2}$"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Hydrology and flood",
+              "Water resources",
+              "Structures and materials",
+              "Construction management",
+              "Geotechnical",
+              "Transportation",
+              "Environment and waste",
+              "Climate change and adaptation",
+              "Energy and buildings",
+              "Surveying and GIS",
+              "Disaster risk",
+              "Smart campus",
+              "Template",
+              "Other"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "idea",
+              "in-progress",
+              "completed"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 30,
+            "maxLength": 400
+          },
+          "javaRole": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 300
+          },
+          "repository": {
+            "type": "string",
+            "pattern": "^https://github\\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+(/.*)?$"
+          },
+          "demo": {
+            "type": "string"
+          },
+          "datasets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "url",
+                "licence"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                },
+                "licence": {
+                  "type": "string",
+                  "minLength": 2
+                }
+              }
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 30
+            },
+            "maxItems": 10
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab Guides</title>
+  <meta name="description" content="Architecture, GitHub set-up, student guide, hydrology method, data sources and Android guide of the lab.">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/lab.css">
+  <link rel="stylesheet" href="assets/vendor/highlight/github.min.css">
+  <script src="assets/vendor/marked/marked.umd.js"></script>
+  <script src="assets/vendor/highlight/highlight.min.js"></script>
+</head>
+<body>
+<main>
+  <div class="docs">
+    <nav class="card" id="doc-nav" aria-label="Guides"></nav>
+    <article class="card prose" id="doc" style="max-width:none"><p class="muted">Loading...</p></article>
+  </div>
+</main>
+<script type="module">
+  import { chrome, fetchJson, fetchText, renderMarkdown } from './assets/js/common.js';
+  chrome('docs.html');
+  const docs = await fetchJson('docs/index.json');
+  const nav = document.getElementById('doc-nav');
+  nav.innerHTML = docs.map(d => `<a href="#${d.id}" data-id="${d.id}">${d.title}</a>`).join('');
+  async function show() {
+    const id = location.hash.slice(1) || docs[0].id;
+    const d = docs.find(x => x.id === id) || docs[0];
+    nav.querySelectorAll('a').forEach(a => a.classList.toggle('active', a.dataset.id === d.id));
+    document.getElementById('doc').innerHTML = renderMarkdown(await fetchText(`docs/${d.file}`), d.repoPath);
+    document.title = d.title;
+    window.scrollTo({ top: 0 });
+  }
+  window.addEventListener('hashchange', show);
+  show();
+</script>
+</body>
+</html>

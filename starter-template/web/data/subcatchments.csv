@@ -1,0 +1,10 @@
+# Sub-catchments of the hill catchment south-east of VIT Vellore (outlet 12.94208 N, 79.26014 E).
+# Derived with civiltech-core (Priority-Flood, D8) from Copernicus GLO-30 DEM and ESA WorldCover 2021 v200.
+# curve_number: area-weighted TR-55 value for hydrologic soil group C (assumed). tc_h: Kirpich (1940).
+name,outlet_lat,outlet_lon,centroid_lat,centroid_lon,area_km2,curve_number,flow_length_m,slope,tc_h
+Tributary 1,12.94486,79.24347,12.94657,79.22459,4.482,78.6,5152,0.0265,0.95
+Tributary 2,12.94097,79.23903,12.91842,79.23018,10.627,73.6,7697,0.0321,1.20
+Tributary 3,12.92486,79.20681,12.90899,79.19894,3.738,72.5,5132,0.0434,0.78
+Tributary 4,12.91764,79.19347,12.90999,79.18689,1.793,71.7,2769,0.0827,0.38
+Tributary 5,12.92042,79.18125,12.90464,79.17566,2.414,73.1,3909,0.0330,0.70
+Main stream corridor,12.94208,79.26014,12.92703,79.20465,15.596,74.9,,,

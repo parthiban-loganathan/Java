@@ -1,0 +1,2 @@
+City: Vellore, Median Temperature: 33.80
+City: Chennai, Median Temperature: 33.00

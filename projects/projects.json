@@ -1,0 +1,41 @@
+{
+  "$schema": "./projects.schema.json",
+  "projects": [
+    {
+      "id": "lab-catchment-simulator",
+      "title": "3D catchment and hourly rainfall-runoff simulator",
+      "team": "Lab maintainers (demonstration project)",
+      "members": [],
+      "academicYear": "2026-2027",
+      "category": "Hydrology and flood",
+      "status": "completed",
+      "summary": "Delineates a hill catchment beside VIT from the Copernicus DEM, computes SCS Curve Number runoff with ERA5 hourly rainfall, routes it with the SCS unit hydrograph and a time-area model, and animates it in 3D.",
+      "javaRole": "Terrain analysis (Priority-Flood, D8, delineation) and all hydrological calculations, compiled to JavaScript with TeaVM and reused in the Android app.",
+      "repository": "https://github.com/parthiban-loganathan/Java",
+      "demo": "catchment.html",
+      "datasets": [
+        {"name": "Copernicus GLO-30 DEM", "url": "https://registry.opendata.aws/copernicus-dem/", "licence": "Copernicus DEM licence"},
+        {"name": "ESA WorldCover 2021 v200", "url": "https://esa-worldcover.org/", "licence": "CC BY 4.0"},
+        {"name": "ERA5 hourly single levels", "url": "https://doi.org/10.24381/cds.adbb2d47", "licence": "Copernicus licence"}
+      ],
+      "tags": ["Java", "TeaVM", "Three.js", "Leaflet", "SCS-CN", "open data"]
+    },
+    {
+      "id": "civiltech-innovation-starter",
+      "title": "CivilTech Innovation Starter (template)",
+      "team": "Lab maintainers (template)",
+      "members": [],
+      "academicYear": "2026-2027",
+      "category": "Template",
+      "status": "completed",
+      "summary": "The common starting point for every team: introduction, data input and CSV upload, a Java calculation module, Chart.js, Leaflet, optional Three.js view, results table and GitHub Pages deployment.",
+      "javaRole": "Example calculation module (Rational Method and SCS Curve Number for campus sub-catchments) compiled to JavaScript with TeaVM.",
+      "repository": "https://github.com/parthiban-loganathan/Java/tree/main/starter-template",
+      "demo": "starter/index.html",
+      "datasets": [
+        {"name": "ERA5 hourly single levels", "url": "https://doi.org/10.24381/cds.adbb2d47", "licence": "Copernicus licence"}
+      ],
+      "tags": ["template", "Java", "Chart.js", "Leaflet", "Three.js"]
+    }
+  ]
+}

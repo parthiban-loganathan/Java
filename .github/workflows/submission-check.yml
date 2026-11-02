@@ -1,0 +1,28 @@
+name: Check project submission
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    if: startsWith(github.event.issue.title, '[Submission]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate the directory entry
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          printf '%s' "$ISSUE_BODY" > body.md
+          python3 tools/check_submission.py body.md > reply.md && echo "valid=true" >> "$GITHUB_ENV" || echo "valid=false" >> "$GITHUB_ENV"
+          cat reply.md
+      - name: Reply on the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --edit-last --body-file reply.md || gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file reply.md
