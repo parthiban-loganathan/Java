@@ -1,0 +1,3586 @@
+From 6ba59d85da2efd55039757763d21724e3ef9f17f Mon Sep 17 00:00:00 2001
+From: VIT Civil Engineering Innovation Lab <lab@users.noreply.github.com>
+Date: Tue, 3 Nov 2026 02:37:08 +0000
+Subject: [PATCH] Streamlit student and teacher apps; Node 24 actions; Pages
+ refresh after open/close
+
+Student app (apps/student): typed-only Java Lab with the website's editor and typing log,
+Run and Check on the real JDK 21 (Temurin 21.0.13+9, SHA-256 verified), every course program
+incl. files, serialization and JDBC (jdbc:mysql on H2 in MySQL mode); same encrypted package
+and GitHub-issue submission as lab.html; holds no secret.
+Sandbox: warm compile server, one JVM per run under the Java 21 Security Manager, prlimit
+CPU/address-space/file-size limits, wall-clock timeout, output caps, 4 run slots.
+
+Teacher app (apps/teacher): sessions open/close (lab-control.yml), live submissions,
+gradebook marking (collect.yml), marks and similarity, replay, new questions with hidden
+cases made on Java 21, key pair.
+
+Workflows: first Node 24 major of every action, runners pinned to ubuntu-24.04; lab-control
+republishes the website after open/close; CI job streamlit-apps.
+lab.js: jittered polling, 10-minute fallback to the website copy after GitHub 403/429.
+Guide 11, README, NOTICE.
+---
+ .github/workflows/ci.yml                      |  62 ++-
+ .github/workflows/lab-control.yml             |  11 +-
+ .github/workflows/lab-intake.yml              |   4 +-
+ .github/workflows/pages.yml                   |  28 +-
+ .github/workflows/submission-check.yml        |   4 +-
+ .gitignore                                    |   2 +
+ NOTICE.md                                     |   3 +
+ README.md                                     |   7 +
+ apps/README.md                                |  10 +
+ apps/labcore/LabJavac.java                    |  93 ++++
+ apps/labcore/__init__.py                      |  13 +
+ apps/labcore/github.py                        | 121 +++++
+ apps/labcore/jdk.py                           | 136 +++++
+ apps/labcore/labdata.py                       | 218 ++++++++
+ .../META-INF/services/java.sql.Driver         |   1 +
+ apps/labcore/mysql-shim/lab/mysql/Driver.java |  98 ++++
+ apps/labcore/sandbox.policy                   |  18 +
+ apps/labcore/sandbox.py                       | 386 +++++++++++++++
+ apps/student/.streamlit/config.toml           |  13 +
+ apps/student/app.py                           | 354 +++++++++++++
+ apps/student/editor/editor.css                |  27 +
+ apps/student/editor/editor.js                 | 161 ++++++
+ apps/student/editor/index.html                |  25 +
+ apps/student/requirements.txt                 |   2 +
+ apps/teacher/.streamlit/config.toml           |  11 +
+ apps/teacher/app.py                           | 468 ++++++++++++++++++
+ apps/teacher/requirements.txt                 |   2 +
+ apps/tests/test_apps.py                       | 277 +++++++++++
+ apps/tests/test_sandbox.py                    | 223 +++++++++
+ docs/00-start-here.md                         |   1 +
+ docs/10-lab-assessments.md                    |   2 +
+ docs/11-streamlit-apps.md                     | 185 +++++++
+ docs/index.json                               |   6 +
+ .../gradebook/.github/workflows/collect.yml   |   8 +-
+ site/assets/js/common.js                      |   3 +
+ site/assets/js/lab.js                         |  27 +-
+ starter-template/.github/workflows/deploy.yml |  14 +-
+ 37 files changed, 2965 insertions(+), 59 deletions(-)
+ create mode 100644 apps/README.md
+ create mode 100644 apps/labcore/LabJavac.java
+ create mode 100644 apps/labcore/__init__.py
+ create mode 100644 apps/labcore/github.py
+ create mode 100644 apps/labcore/jdk.py
+ create mode 100644 apps/labcore/labdata.py
+ create mode 100644 apps/labcore/mysql-shim/META-INF/services/java.sql.Driver
+ create mode 100644 apps/labcore/mysql-shim/lab/mysql/Driver.java
+ create mode 100644 apps/labcore/sandbox.policy
+ create mode 100644 apps/labcore/sandbox.py
+ create mode 100644 apps/student/.streamlit/config.toml
+ create mode 100644 apps/student/app.py
+ create mode 100644 apps/student/editor/editor.css
+ create mode 100644 apps/student/editor/editor.js
+ create mode 100644 apps/student/editor/index.html
+ create mode 100644 apps/student/requirements.txt
+ create mode 100644 apps/teacher/.streamlit/config.toml
+ create mode 100644 apps/teacher/app.py
+ create mode 100644 apps/teacher/requirements.txt
+ create mode 100644 apps/tests/test_apps.py
+ create mode 100644 apps/tests/test_sandbox.py
+ create mode 100644 docs/11-streamlit-apps.md
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 12f7c9c..e562e40 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -11,15 +11,15 @@ permissions:
+ jobs:
+   java-and-site:
+     name: Java tests, course check, browser check, site build
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     steps:
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-java@v4
++      - uses: actions/checkout@v5
++      - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: '21'
+           cache: maven
+-      - uses: actions/setup-node@v4
++      - uses: actions/setup-node@v5
+         with:
+           node-version: '22'
+       - name: Validate project directory and problem bank
+@@ -36,25 +36,39 @@ jobs:
+         run: node tools/verification/browser_hydrology_check.mjs java/web-bridge/target/js/civiltech.js site/data/catchment
+       - name: Same hydrology on the JVM
+         run: java -cp java/civiltech-core/target/classes civiltech.lab.Cli site/data/catchment/vellore_hills_grid.json site/data/catchment/era5_vellore_hourly.csv --from 312 --hours 96 | head -2
+-      - uses: actions/upload-artifact@v4
++      - uses: actions/upload-artifact@v6
+         with:
+           name: site
+           path: build/site
+           retention-days: 7
+ 
++  streamlit-apps:
++    name: Streamlit apps (Java 21 sandbox, every course program, hostile programs, both apps headless)
++    runs-on: ubuntu-24.04
++    timeout-minutes: 30
++    steps:
++      - uses: actions/checkout@v5
++      - uses: actions/setup-python@v6
++        with:
++          python-version: '3.12'
++      - name: Dependencies of the apps (the same pins Streamlit Community Cloud installs)
++        run: pip install -q -r apps/student/requirements.txt
++      - name: Sandbox and apps (downloads Temurin 21 and H2 exactly as the student app does)
++        run: python3 -m unittest discover -s apps/tests -v
++
+   lab-grader:
+     name: Lab grader in Docker (correct, wrong, broken and hostile programs) and submission system
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     steps:
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-java@v4
++      - uses: actions/checkout@v5
++      - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: '21'
+-      - uses: actions/setup-python@v5
++      - uses: actions/setup-python@v6
+         with:
+           python-version: '3.12'
+-      - uses: actions/setup-node@v4
++      - uses: actions/setup-node@v5
+         with:
+           node-version: '22'
+       - name: Submission system (session control, intake, encryption Python/browser, collection and marking)
+@@ -71,25 +85,25 @@ jobs:
+ 
+   browser-javac:
+     name: In-browser Java compiler (build from source, run every course program in Chromium)
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     timeout-minutes: 90
+     steps:
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-java@v4
++      - uses: actions/checkout@v5
++      - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: |
+             25
+             21
+           cache: maven
+-      - uses: actions/setup-node@v4
++      - uses: actions/setup-node@v5
+         with:
+           node-version: '22'
+       - name: Build the lab's class-library additions
+         run: mvn -B -q -f java/pom.xml install -DskipTests
+       - name: Cache the compiler
+         id: cache
+-        uses: actions/cache@v4
++        uses: actions/cache@v5
+         with:
+           path: javac-dist
+           key: browser-javac-${{ hashFiles('tools/browser-javac/build.sh', 'java/teavm-patches/src/**') }}
+@@ -98,7 +112,7 @@ jobs:
+         env:
+           JAVA25_HOME: ${{ env.JAVA_HOME_25_X64 }}
+         run: bash tools/browser-javac/build.sh javac-dist
+-      - uses: actions/upload-artifact@v4
++      - uses: actions/upload-artifact@v6
+         with:
+           name: browser-javac
+           path: javac-dist
+@@ -124,7 +138,7 @@ jobs:
+ 
+   jdbc-experiment:
+     name: Experiment 16 with a real MySQL server
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     services:
+       mysql:
+         image: mysql:8.4
+@@ -135,8 +149,8 @@ jobs:
+           --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword"
+           --health-interval=5s --health-timeout=5s --health-retries=20
+     steps:
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-java@v4
++      - uses: actions/checkout@v5
++      - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: '21'
+@@ -156,18 +170,18 @@ jobs:
+ 
+   android:
+     name: Android APK
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     steps:
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-java@v4
++      - uses: actions/checkout@v5
++      - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: '17'
+-      - uses: gradle/actions/setup-gradle@v4
++      - uses: gradle/actions/setup-gradle@v5
+       - name: Build debug APK
+         working-directory: android-app
+         run: ./gradlew --no-daemon assembleDebug
+-      - uses: actions/upload-artifact@v4
++      - uses: actions/upload-artifact@v6
+         with:
+           name: android-apk
+           path: android-app/app/build/outputs/apk/debug/app-debug.apk
+diff --git a/.github/workflows/lab-control.yml b/.github/workflows/lab-control.yml
+index fbe56c8..25328b1 100644
+--- a/.github/workflows/lab-control.yml
++++ b/.github/workflows/lab-control.yml
+@@ -30,7 +30,7 @@ on:
+ 
+ permissions:
+   contents: write
+-  actions: read
++  actions: write
+   issues: write
+ 
+ concurrency:
+@@ -39,10 +39,10 @@ concurrency:
+ 
+ jobs:
+   control:
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     timeout-minutes: 5
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v5
+       - name: Time the button was pressed
+         id: time
+         env:
+@@ -82,3 +82,8 @@ jobs:
+             sleep $((i * 2)); git pull -q --rebase origin "${GITHUB_REF_NAME}"
+           done
+           exit 1
++      - name: Refresh the website's copy of lab/ (lab.html falls back to it when GitHub limits raw downloads)
++        if: github.ref_name == 'main'
++        env:
++          GH_TOKEN: ${{ github.token }}
++        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "::warning::Could not start the website deployment"
+diff --git a/.github/workflows/lab-intake.yml b/.github/workflows/lab-intake.yml
+index 8194d23..301606f 100644
+--- a/.github/workflows/lab-intake.yml
++++ b/.github/workflows/lab-intake.yml
+@@ -15,10 +15,10 @@ permissions:
+ jobs:
+   intake:
+     if: startsWith(github.event.issue.title, '[Lab]') || contains(github.event.issue.labels.*.name, 'lab-submission')
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     timeout-minutes: 10
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v5
+         with:
+           sparse-checkout: |
+             tools/lab
+diff --git a/.github/workflows/pages.yml b/.github/workflows/pages.yml
+index 22fa43b..4f66929 100644
+--- a/.github/workflows/pages.yml
++++ b/.github/workflows/pages.yml
+@@ -18,27 +18,27 @@ concurrency:
+ 
+ jobs:
+   android:
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     steps:
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-java@v4
++      - uses: actions/checkout@v5
++      - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: '17'
+-      - uses: gradle/actions/setup-gradle@v4
++      - uses: gradle/actions/setup-gradle@v5
+       - working-directory: android-app
+         run: ./gradlew --no-daemon assembleDebug
+-      - uses: actions/upload-artifact@v4
++      - uses: actions/upload-artifact@v6
+         with:
+           name: apk
+           path: android-app/app/build/outputs/apk/debug/app-debug.apk
+ 
+   build:
+     needs: android
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     steps:
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-java@v4
++      - uses: actions/checkout@v5
++      - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: |
+@@ -49,7 +49,7 @@ jobs:
+         run: mvn -B -q -f java/pom.xml install -DskipTests
+       - name: Cache the in-browser Java compiler
+         id: cache
+-        uses: actions/cache@v4
++        uses: actions/cache@v5
+         with:
+           path: javac-dist
+           key: browser-javac-${{ hashFiles('tools/browser-javac/build.sh', 'java/teavm-patches/src/**') }}
+@@ -62,23 +62,23 @@ jobs:
+         env:
+           JAVAC_DIST: javac-dist
+         run: bash tools/build-site.sh build/site
+-      - uses: actions/download-artifact@v4
++      - uses: actions/download-artifact@v7
+         with:
+           name: apk
+           path: build/site/downloads
+       - name: Name the APK
+         run: mv build/site/downloads/app-debug.apk build/site/downloads/civiltech-catchment-debug.apk
+-      - uses: actions/configure-pages@v5
+-      - uses: actions/upload-pages-artifact@v3
++      - uses: actions/configure-pages@v6
++      - uses: actions/upload-pages-artifact@v5
+         with:
+           path: build/site
+ 
+   deploy:
+     needs: build
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     environment:
+       name: github-pages
+       url: ${{ steps.deployment.outputs.page_url }}
+     steps:
+       - id: deployment
+-        uses: actions/deploy-pages@v4
++        uses: actions/deploy-pages@v5
+diff --git a/.github/workflows/submission-check.yml b/.github/workflows/submission-check.yml
+index 2bafc11..7e18162 100644
+--- a/.github/workflows/submission-check.yml
++++ b/.github/workflows/submission-check.yml
+@@ -11,9 +11,9 @@ permissions:
+ jobs:
+   check:
+     if: startsWith(github.event.issue.title, '[Submission]')
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v5
+       - name: Validate the directory entry
+         env:
+           ISSUE_BODY: ${{ github.event.issue.body }}
+diff --git a/.gitignore b/.gitignore
+index 012e16c..338bf7b 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -12,3 +12,5 @@ android-app/local.properties
+ *.ser
+ __pycache__/
+ .DS_Store
++.streamlit/secrets.toml
++apps/**/.streamlit/secrets.toml
+diff --git a/NOTICE.md b/NOTICE.md
+index 21a45e5..a38852d 100644
+--- a/NOTICE.md
++++ b/NOTICE.md
+@@ -14,4 +14,7 @@
+ | `site/assets/vendor/marked` (marked 15.0.7) | MIT |
+ | `site/assets/vendor/highlight` (highlight.js 11.11.1) | BSD-3-Clause |
+ | `site/data/catchment/*` | derived from Copernicus DEM, ESA WorldCover (CC BY 4.0) and ERA5 (Copernicus licence); see `docs/06-data-sources.md` |
++| Eclipse Temurin 21 JDK (downloaded by the student app at start-up, checksum verified, not stored in the repository) | GPL version 2 with the Classpath Exception |
++| H2 Database Engine 2.4.240 (downloaded by the student app for Experiment 16, checksum verified, not stored in the repository) | MPL 2.0 or EPL 1.0 (dual licence) |
++| Streamlit (Python package, installed by Community Cloud) | Apache License 2.0 |
+ | Experiment problem statements (`course/experiments`) | from the BACSE102 course handout, VIT |
+diff --git a/README.md b/README.md
+index fe34e56..338587f 100644
+--- a/README.md
++++ b/README.md
+@@ -17,6 +17,7 @@ public source code.
+ | CivilTech Innovation Starter | The one template every team copies: Java module + tests, CSV upload, Chart.js, Leaflet, Three.js, results table, Pages deployment | [`starter-template/`](starter-template/) |
+ | Android app | The same Java core compiled into a native Android app (APK built by GitHub Actions) | [`android-app/`](android-app/) |
+ | Java Lab assessments | Students type (paste blocked), compile, run and check Java in the browser and submit with register number and name; the teacher opens and closes each assessment with one button; submissions are encrypted for the teacher and carry the full typing log; a private gradebook decrypts, re-tests with hidden cases in isolated containers, flags pasting, large insertions, time away and similar programs, and writes mark sheets; the Teacher tools page replays the typing | [`lab/`](lab/), [`tools/lab/`](tools/lab/), [`lab-system/`](lab-system/), pages `lab.html`, `teacher.html`, [`docs/10-lab-assessments.md`](docs/10-lab-assessments.md) |
++| Streamlit apps | **Student app**: the same typed-only lab, but programs run on the real JDK 21 on the server (files, serialization and JDBC included), same encrypted package and GitHub submission. **Teacher app**: open and close sessions, live submissions, start marking, marks and similarity, replay, new questions with hidden cases, key pair. Free on Streamlit Community Cloud | [`apps/`](apps/), [`docs/11-streamlit-apps.md`](docs/11-streamlit-apps.md) |
+ | Problem bank | 100 real civil, environmental and climate problems with methods, open data and Java concepts; claim and submit from the website | [`problems/`](problems/), pages `problems.html`, `submit.html` |
+ | Project directory | Student projects, validated by a schema, shown on the website | [`projects/`](projects/) |
+ | Guides | Start here, architecture, GitHub set-up, student guide, submission, method, data, Android, teacher guide, teaching plan | [`docs/`](docs/) |
+@@ -58,12 +59,18 @@ node tools/verification/browser_hydrology_check.mjs java/web-bridge/target/js/ci
+ python3 tools/verification/crosscheck_terrain.py site/data/catchment/vellore_hills_grid.json 77 234
+ ```
+ 
++```bash
++python3 -m unittest discover -s apps/tests -v
++```
++
+ * 12 unit tests of the core library (plus 3 in the starter template) (hand calculations, mass balance, D8 on synthetic terrain,
+   the real catchment), all passing.
+ * All 37 course programs compile and reproduce their expected output on JDK 21 (Experiment 16
+   against a real MySQL 8.4 server in CI).
+ * 49 test cases run in the browser build: 47 identical to the JDK, 2 documented differences of the
+   TeaVM runtime (exception message wording; no array-bounds / integer-division checks).
++* Streamlit apps: every course program (55 cases, Experiment 16 included) reproduces its expected output in the
++  student app's sandbox on Java 21; hostile programs are contained; both apps pass headless tests.
+ * The catchment (38.650 km², longest path 15 414 m, drop 205.9 m) is reproduced exactly by an
+   independent Python implementation; JVM and browser give identical hydrographs.
+ 
+diff --git a/apps/README.md b/apps/README.md
+new file mode 100644
+index 0000000..afb8791
+--- /dev/null
++++ b/apps/README.md
+@@ -0,0 +1,10 @@
++# Streamlit apps of the Java Lab
++
++| Folder | Entry file | Purpose |
++|--------|-----------|---------|
++| `student/` | `apps/student/app.py` | typed-only Java Lab on the real JDK 21; encrypted submission through a GitHub issue |
++| `teacher/` | `apps/teacher/app.py` | sessions, submissions, marking, replay, questions with hidden cases, key pair |
++| `labcore/` | | shared: Java 21 download (`jdk.py`), sandbox (`sandbox.py`, `sandbox.policy`, `LabJavac.java`, `mysql-shim/`), lab data (`labdata.py`), GitHub client (`github.py`) |
++| `tests/` | | `python3 -m unittest discover -s apps/tests -v` |
++
++Deployment and daily use: [docs/11-streamlit-apps.md](../docs/11-streamlit-apps.md).
+diff --git a/apps/labcore/LabJavac.java b/apps/labcore/LabJavac.java
+new file mode 100644
+index 0000000..49476e5
+--- /dev/null
++++ b/apps/labcore/LabJavac.java
+@@ -0,0 +1,93 @@
++import java.io.BufferedReader;
++import java.io.IOException;
++import java.io.InputStreamReader;
++import java.io.PrintStream;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.Paths;
++import java.util.ArrayList;
++import java.util.Base64;
++import java.util.List;
++import java.util.Locale;
++import java.util.stream.Stream;
++import javax.tools.Diagnostic;
++import javax.tools.DiagnosticCollector;
++import javax.tools.JavaCompiler;
++import javax.tools.JavaFileObject;
++import javax.tools.StandardJavaFileManager;
++import javax.tools.ToolProvider;
++
++/**
++ * Compile server of the Java Lab student app (apps/labcore/sandbox.py).
++ *
++ * One JVM keeps the JDK compiler warm, so a compile takes tens of milliseconds instead of a
++ * second and about 80 MB per student. It only compiles: student code is never executed here
++ * (annotation processing is switched off), so a hostile program cannot reach this process.
++ *
++ * Protocol, one request per line on standard input:  ID TAB SOURCE_DIR TAB CLASS_DIR
++ * Answer on standard output:  ID TAB OK(0|1) TAB N, then N lines  KIND TAB LINE TAB COLUMN TAB BASE64(message)
++ */
++public class LabJavac {
++    public static void main(String[] args) throws IOException {
++        JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
++        if (javac == null) {
++            System.err.println("no system Java compiler: a JDK (not a JRE) is required");
++            System.exit(2);
++        }
++        PrintStream out = new PrintStream(System.out, false, StandardCharsets.UTF_8);
++        BufferedReader in = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
++        System.setOut(new PrintStream(System.err, true, StandardCharsets.UTF_8)); // nothing else may write to the protocol stream
++        out.println("READY");
++        out.flush();
++        String line;
++        while ((line = in.readLine()) != null) {
++            String[] f = line.split("\t", -1);
++            if (f.length != 3) {
++                continue;
++            }
++            List<String[]> diags = new ArrayList<>();
++            boolean ok;
++            try {
++                ok = compile(javac, Paths.get(f[1]), Paths.get(f[2]), diags);
++            } catch (OutOfMemoryError e) {
++                System.exit(3); // the app restarts the server
++                return;
++            } catch (Throwable e) {
++                ok = false;
++                diags.add(new String[] {"ERROR", "0", "0", b64("compiler failure: " + e)});
++            }
++            StringBuilder b = new StringBuilder();
++            b.append(f[0]).append('\t').append(ok ? '1' : '0').append('\t').append(diags.size()).append('\n');
++            for (String[] d : diags) {
++                b.append(String.join("\t", d)).append('\n');
++            }
++            out.print(b);
++            out.flush();
++        }
++    }
++
++    static boolean compile(JavaCompiler javac, Path src, Path classes, List<String[]> diags) throws IOException {
++        List<Path> files = new ArrayList<>();
++        try (Stream<Path> s = Files.list(src)) {
++            s.filter(p -> p.toString().endsWith(".java")).sorted().forEach(files::add);
++        }
++        Files.createDirectories(classes);
++        DiagnosticCollector<JavaFileObject> collector = new DiagnosticCollector<>();
++        try (StandardJavaFileManager fm = javac.getStandardFileManager(collector, Locale.ENGLISH, StandardCharsets.UTF_8)) {
++            List<String> opts = List.of("-d", classes.toString(), "-encoding", "UTF-8", "-Xlint:none",
++                    "-proc:none", "-implicit:none", "-Xmaxerrs", "50", "-g", "-cp", classes.toString());
++            Boolean ok = javac.getTask(null, fm, collector, opts, null, fm.getJavaFileObjectsFromPaths(files)).call();
++            for (Diagnostic<? extends JavaFileObject> d : collector.getDiagnostics()) {
++                String name = d.getSource() == null ? "" : Paths.get(d.getSource().getName()).getFileName().toString();
++                diags.add(new String[] {d.getKind().name(), Long.toString(Math.max(0, d.getLineNumber())),
++                        Long.toString(Math.max(0, d.getColumnNumber())), b64(name + "\u0000" + d.getMessage(Locale.ENGLISH))});
++            }
++            return Boolean.TRUE.equals(ok);
++        }
++    }
++
++    static String b64(String s) {
++        return Base64.getEncoder().encodeToString(s.getBytes(StandardCharsets.UTF_8));
++    }
++}
+diff --git a/apps/labcore/__init__.py b/apps/labcore/__init__.py
+new file mode 100644
+index 0000000..b13f9d1
+--- /dev/null
++++ b/apps/labcore/__init__.py
+@@ -0,0 +1,13 @@
++"""Shared code of the two Streamlit apps of the Java Lab (apps/student, apps/teacher).
++
++The apps run on Streamlit Community Cloud from this repository; their working directory is the
++repository root, so the lab tools (tools/lab) and course files (course/, lab/) are imported and
++read from the same checkout as the website.
++"""
++import os
++import sys
++
++ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
++for _p in (os.path.join(ROOT, "tools", "lab"), os.path.join(ROOT, "lab-system", "grader")):
++    if _p not in sys.path:
++        sys.path.insert(0, _p)
+diff --git a/apps/labcore/github.py b/apps/labcore/github.py
+new file mode 100644
+index 0000000..1d63a33
+--- /dev/null
++++ b/apps/labcore/github.py
+@@ -0,0 +1,121 @@
++"""Minimal GitHub REST client for the teacher app (standard library only).
++
++Token: a fine-grained personal access token limited to the two lab repositories, with
++  public lab repository : Actions read/write, Contents read/write, Issues read, Metadata read
++  private gradebook     : Actions read/write, Contents read/write, Metadata read
++"""
++import base64
++import json
++import os
++import time
++import urllib.error
++import urllib.parse
++import urllib.request
++
++API = os.environ.get("LAB_GITHUB_API", "https://api.github.com")   # override only for tests
++
++
++class GitHubError(RuntimeError):
++    def __init__(self, status, message):
++        super().__init__("GitHub %s: %s" % (status, message))
++        self.status = status
++
++
++class GitHub:
++    def __init__(self, token):
++        self.token = token
++
++    def request(self, method, path, body=None, accept="application/vnd.github+json", raw=False):
++        url = path if path.startswith("https://") else API + path
++        data = json.dumps(body).encode() if body is not None else None
++        headers = {"Accept": accept, "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "java-lab-teacher"}
++        if self.token:
++            headers["Authorization"] = "Bearer " + self.token
++        if data is not None:
++            headers["Content-Type"] = "application/json"
++        req = urllib.request.Request(url, data=data, method=method, headers=headers)
++        try:
++            with urllib.request.urlopen(req, timeout=60) as r:
++                payload = r.read()
++        except urllib.error.HTTPError as e:
++            try:
++                msg = json.loads(e.read().decode()).get("message", "")
++            except (ValueError, UnicodeDecodeError):
++                msg = e.reason
++            raise GitHubError(e.code, msg) from None
++        except urllib.error.URLError as e:
++            raise GitHubError(0, str(e.reason)) from None
++        if raw:
++            return payload
++        return json.loads(payload) if payload else None
++
++    def get(self, path, **kw):
++        return self.request("GET", path, **kw)
++
++    def paged(self, path, limit=1000):
++        out, page = [], 1
++        sep = "&" if "?" in path else "?"
++        while len(out) < limit:
++            items = self.get("%s%sper_page=100&page=%d" % (path, sep, page))
++            if isinstance(items, dict):        # search results
++                items = items.get("items", [])
++            out.extend(items)
++            if len(items) < 100:
++                break
++            page += 1
++        return out[:limit]
++
++    # ------------------------------------------------------------------ repositories
++    def repo(self, repo):
++        return self.get("/repos/%s" % repo)
++
++    def file_text(self, repo, path, ref="main"):
++        """Text of a file, or None when it does not exist."""
++        try:
++            data = self.get("/repos/%s/contents/%s?ref=%s" % (repo, urllib.parse.quote(path), ref), accept="application/vnd.github.raw+json", raw=True)
++        except GitHubError as e:
++            if e.status == 404:
++                return None
++            raise
++        return data.decode("utf-8", "replace")
++
++    def tree(self, repo, ref="main"):
++        """Every file path of the branch (recursive tree)."""
++        sha = self.get("/repos/%s/git/ref/heads/%s" % (repo, ref))["object"]["sha"]
++        t = self.get("/repos/%s/git/trees/%s?recursive=1" % (repo, sha))
++        return [x["path"] for x in t.get("tree", []) if x.get("type") == "blob"]
++
++    def commit_files(self, repo, files, message, ref="main", attempts=4):
++        """One commit with all files ({path: text}); retried when the branch moved meanwhile."""
++        for attempt in range(attempts):
++            head = self.get("/repos/%s/git/ref/heads/%s" % (repo, ref))["object"]["sha"]
++            base_tree = self.get("/repos/%s/git/commits/%s" % (repo, head))["tree"]["sha"]
++            entries = [{"path": p, "mode": "100644", "type": "blob", "content": t} for p, t in sorted(files.items())]
++            tree = self.request("POST", "/repos/%s/git/trees" % repo, {"base_tree": base_tree, "tree": entries})["sha"]
++            commit = self.request("POST", "/repos/%s/git/commits" % repo, {"message": message, "tree": tree, "parents": [head]})["sha"]
++            try:
++                self.request("PATCH", "/repos/%s/git/refs/heads/%s" % (repo, ref), {"sha": commit, "force": False})
++                return commit
++            except GitHubError as e:
++                if e.status != 422 or attempt == attempts - 1:
++                    raise
++                time.sleep(1 + attempt)
++        return None
++
++    # ------------------------------------------------------------------ workflows
++    def dispatch(self, repo, workflow, inputs, ref="main"):
++        self.request("POST", "/repos/%s/actions/workflows/%s/dispatches" % (repo, workflow), {"ref": ref, "inputs": inputs})
++
++    def runs(self, repo, workflow, n=5):
++        return self.get("/repos/%s/actions/workflows/%s/runs?per_page=%d" % (repo, workflow, n)).get("workflow_runs", [])
++
++    # ------------------------------------------------------------------ issues
++    def issues(self, repo, label, since=None, limit=1000):
++        q = "/repos/%s/issues?state=all&labels=%s&sort=created&direction=desc" % (repo, urllib.parse.quote(label))
++        if since:
++            q += "&since=" + since
++        return [i for i in self.paged(q, limit) if "pull_request" not in i]
++
++
++def b64(text):
++    return base64.b64encode(text.encode()).decode()
+diff --git a/apps/labcore/jdk.py b/apps/labcore/jdk.py
+new file mode 100644
+index 0000000..2e1802b
+--- /dev/null
++++ b/apps/labcore/jdk.py
+@@ -0,0 +1,136 @@
++"""A Java 21 JDK for the student app.
++
++Streamlit Community Cloud runs on Debian 11, whose packages stop at Java 17, while the gradebook
++marks with Eclipse Temurin 21 (lab-system/grader). The app therefore downloads the same Temurin 21
++JDK once per container start, checks its SHA-256 and unpacks it into a cache folder.
++
++Order of preference: $LAB_JAVA_HOME, the cached Temurin download, a JDK 21+ already on PATH.
++"""
++import hashlib
++import os
++import platform
++import shutil
++import subprocess
++import tarfile
++import tempfile
++import urllib.request
++
++VERSION = "21.0.13+9"
++SHA256 = {  # from the .sha256.txt files published with the release
++    "x64": "d7f5d5cf865a2902b70ff549b97586a7d3f234e016f041ab447ea740c7d66d1c",
++    "aarch64": "e3522e707fc7dbe2a72c30746b1e7068301a0213ecd213d4491f35a14eb55578",
++}
++ARCH = {"x86_64": "x64", "amd64": "x64", "aarch64": "aarch64", "arm64": "aarch64"}
++
++
++class JdkError(RuntimeError):
++    pass
++
++
++def _url(arch):
++    tag = "jdk-" + VERSION.replace("+", "%2B")
++    name = "OpenJDK21U-jdk_%s_linux_hotspot_%s.tar.gz" % (arch, VERSION.replace("+", "_"))
++    return "https://github.com/adoptium/temurin21-binaries/releases/download/%s/%s" % (tag, name)
++
++
++def cache_dir():
++    base = os.environ.get("LAB_CACHE") or os.path.join(os.path.expanduser("~"), ".cache", "javalab")
++    try:
++        os.makedirs(base, exist_ok=True)
++        probe = os.path.join(base, ".w")
++        open(probe, "w").close()
++        os.remove(probe)
++        return base
++    except OSError:
++        base = os.path.join(tempfile.gettempdir(), "javalab")
++        os.makedirs(base, exist_ok=True)
++        return base
++
++
++def _major(java_home):
++    """Feature version of the JDK at java_home (e.g. 21), or 0 when it is not a usable JDK."""
++    javac = os.path.join(java_home, "bin", "javac")
++    java = os.path.join(java_home, "bin", "java")
++    if not (os.access(javac, os.X_OK) and os.access(java, os.X_OK)):
++        return 0
++    try:
++        out = subprocess.run([java, "-XshowSettings:properties", "-version"], capture_output=True,
++                             text=True, timeout=60).stderr
++    except (OSError, subprocess.SubprocessError):
++        return 0
++    for line in out.splitlines():
++        line = line.strip()
++        if line.startswith("java.specification.version ="):
++            try:
++                return int(line.split("=", 1)[1].strip())
++            except ValueError:
++                return 0
++    return 0
++
++
++def _download(arch, dest, log):
++    url = _url(arch)
++    log("Downloading Temurin %s (%s) ..." % (VERSION, arch))
++    tmp = dest + ".part"
++    digest = hashlib.sha256()
++    req = urllib.request.Request(url, headers={"User-Agent": "java-lab-streamlit"})
++    with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
++        while True:
++            chunk = r.read(1 << 20)
++            if not chunk:
++                break
++            digest.update(chunk)
++            f.write(chunk)
++    if digest.hexdigest() != SHA256[arch]:
++        os.remove(tmp)
++        raise JdkError("checksum mismatch for %s" % url)
++    os.replace(tmp, dest)
++
++
++def _safe_extract(archive, target):
++    with tarfile.open(archive, "r:gz") as tar:
++        root = os.path.realpath(target)
++        for m in tar.getmembers():
++            p = os.path.realpath(os.path.join(target, m.name))
++            if os.path.commonpath([root, p]) != root:
++                raise JdkError("unsafe path in archive: %s" % m.name)
++        try:
++            tar.extractall(target, filter="tar")
++        except TypeError:  # Python < 3.12 without extraction filters
++            tar.extractall(target)
++
++
++def ensure_jdk(log=lambda msg: None):
++    """Returns JAVA_HOME of a JDK 21 or newer; downloads Temurin 21 if needed."""
++    env_home = os.environ.get("LAB_JAVA_HOME")
++    if env_home and _major(env_home) >= 21:
++        return env_home
++    arch = ARCH.get(platform.machine().lower())
++    base = cache_dir()
++    home = os.path.join(base, "jdk-" + VERSION)
++    if _major(home) >= 21:
++        return home
++    if arch:
++        try:
++            archive = os.path.join(base, "temurin-%s-%s.tar.gz" % (VERSION.replace("+", "_"), arch))
++            if not os.path.exists(archive):
++                _download(arch, archive, log)
++            work = tempfile.mkdtemp(dir=base)
++            _safe_extract(archive, work)
++            tops = [d for d in os.listdir(work) if os.path.isdir(os.path.join(work, d))]
++            if len(tops) != 1:
++                raise JdkError("unexpected archive layout")
++            shutil.rmtree(home, ignore_errors=True)
++            os.replace(os.path.join(work, tops[0]), home)
++            shutil.rmtree(work, ignore_errors=True)
++            os.remove(archive)
++            if _major(home) >= 21:
++                return home
++        except (OSError, JdkError, tarfile.TarError) as e:
++            log("Temurin download failed: %s" % e)
++    javac = shutil.which("javac")
++    if javac:
++        cand = os.path.dirname(os.path.dirname(os.path.realpath(javac)))
++        if _major(cand) >= 21:
++            return cand
++    raise JdkError("no Java 21 JDK available (download failed and none on PATH)")
+diff --git a/apps/labcore/labdata.py b/apps/labcore/labdata.py
+new file mode 100644
+index 0000000..763beb0
+--- /dev/null
++++ b/apps/labcore/labdata.py
+@@ -0,0 +1,218 @@
++"""Lab data read by both apps: course catalog, questions with sample cases, lab/control.json and
++the teacher's public key.
++
++control.json and the key change during a lab (the "Lab session control" workflow commits them),
++so they are read from GitHub (raw.githubusercontent.com) by the app server, not by every
++browser: one request per TTL for the whole class instead of one per student per minute. The
++copy in the app's own checkout is the fallback. Questions come from the checkout first and from
++GitHub when a question was committed after the app last updated.
++"""
++import json
++import os
++import re
++import threading
++import time
++import urllib.error
++import urllib.request
++from dataclasses import dataclass, field
++
++from . import ROOT
++import control as ctl  # tools/lab/control.py
++
++REPO = os.environ.get("LAB_REPO", "parthiban-loganathan/Java")
++BRANCH = os.environ.get("LAB_BRANCH", "main")
++RAW = "https://raw.githubusercontent.com/%s/%s/" % (REPO, BRANCH)
++ID = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
++DEFAULT_REGNO = r"^[0-9]{2}[A-Z]{3}[0-9]{4}$"
++
++
++@dataclass
++class Question:
++    id: str
++    title: str
++    markdown: str
++    cases: list                      # [(input, expected)]
++    folder: str = ""                 # local folder (setup.sql of Experiment 16), "" when fetched
++    kind: str = "lab"                # lab | lesson | experiment
++    note: str = ""
++    requires: str = ""
++    files: dict = field(default_factory=dict)   # reference sources (course programs only)
++
++
++# ---------------------------------------------------------------------- small cached fetcher
++_cache = {}
++_cache_lock = threading.Lock()
++
++
++def fetch_text(path, ttl):
++    """Text of a repository file from GitHub, cached ttl seconds; None when missing or offline."""
++    now = time.monotonic()
++    with _cache_lock:
++        hit = _cache.get(path)
++        if hit and now - hit[0] < ttl:
++            return hit[1]
++    try:
++        req = urllib.request.Request(RAW + path, headers={"User-Agent": "java-lab-streamlit", "Cache-Control": "no-cache"})
++        with urllib.request.urlopen(req, timeout=10) as r:
++            text = r.read().decode("utf-8")
++    except urllib.error.HTTPError as e:
++        if e.code != 404:                      # rate limit or outage: keep what we had
++            return hit[1] if hit else None
++        text = None                            # the file does not exist (cached as such)
++    except (urllib.error.URLError, OSError, UnicodeDecodeError):
++        return hit[1] if hit else None
++    with _cache_lock:
++        _cache[path] = (now, text)
++    return text
++
++
++def local_text(path):
++    p = os.path.join(ROOT, path)
++    try:
++        with open(p, encoding="utf-8") as f:
++            return f.read()
++    except OSError:
++        return None
++
++
++# ---------------------------------------------------------------------- control.json and key
++def control(ttl=20):
++    """(data, source): lab/control.json from GitHub (fresh within ttl s) or the local copy."""
++    text = fetch_text("lab/control.json", ttl)
++    source = "GitHub"
++    if text is None:
++        text, source = local_text("lab/control.json"), "local copy"
++    try:
++        data = json.loads(text) if text else ctl.empty()
++    except ValueError:
++        data, source = ctl.empty(), "unreadable"
++    data.setdefault("sessions", [])
++    data.setdefault("settings", {})
++    return data, source
++
++
++def public_key(ttl=60):
++    text = fetch_text("lab/teacher-public-key.pem", ttl) or local_text("lab/teacher-public-key.pem")
++    return text if text and "BEGIN PUBLIC KEY" in text else None
++
++
++def regno_pattern(data):
++    try:
++        return re.compile((data.get("settings") or {}).get("regnoPattern") or DEFAULT_REGNO)
++    except re.error:
++        return re.compile(DEFAULT_REGNO)
++
++
++def utcnow():
++    import datetime as dt
++    return dt.datetime.now(dt.timezone.utc)
++
++
++def open_sessions(data, now=None):
++    """[(session, window)] open now, by the same rule as intake and gradebook."""
++    return ctl.open_windows(data, now or utcnow())
++
++
++def window_end(w):
++    return ctl.window_end(w)
++
++
++# ---------------------------------------------------------------------- course catalog
++def _props(path):
++    out = {}
++    text = local_text(os.path.relpath(path, ROOT)) or ""
++    for line in text.splitlines():
++        line = line.strip()
++        if line and not line.startswith("#") and "=" in line:
++            k, v = line.split("=", 1)
++            out[k.strip()] = v.strip()
++    return out
++
++
++def _cases_in(folder):
++    cases, n = [], 1
++    while True:
++        suf = "" if n == 1 else "-%d" % n
++        exp = os.path.join(folder, "expected%s.txt" % suf)
++        if not os.path.exists(exp):
++            return cases
++        inp = os.path.join(folder, "input%s.txt" % suf)
++        with open(exp, encoding="utf-8") as f:
++            e = f.read()
++        i = ""
++        if os.path.exists(inp):
++            with open(inp, encoding="utf-8") as f:
++                i = f.read()
++        cases.append((i, e))
++        n += 1
++
++
++_catalog = None
++
++
++def catalog():
++    """Course programs in order: [{"id", "title", "kind", "folder", "requires", "order"}]."""
++    global _catalog
++    if _catalog is None:
++        items = []
++        for group in ("lessons", "experiments"):
++            base = os.path.join(ROOT, "course", group)
++            if not os.path.isdir(base):
++                continue
++            for d in sorted(os.listdir(base)):
++                folder = os.path.join(base, d)
++                meta = os.path.join(folder, "meta.properties")
++                if os.path.exists(meta):
++                    m = _props(meta)
++                    items.append({"id": d.split("-")[0], "title": m.get("title", d), "kind": m.get("kind", group[:-1]),
++                                  "folder": folder, "requires": m.get("requires", ""),
++                                  "order": (0 if group == "lessons" else 1, int(m.get("order", "0") or 0))})
++        items.sort(key=lambda x: x["order"])
++        _catalog = items
++    return _catalog
++
++
++def course_ids():
++    return [p["id"] for p in catalog()]
++
++
++def question(qid):
++    """Question by id: a course program (L07, E05a) or lab/questions/<ID>. None when unknown."""
++    if not ID.match(qid or ""):
++        return None
++    p = next((x for x in catalog() if x["id"] == qid), None)
++    if p:
++        folder = p["folder"]
++        md = local_text(os.path.relpath(os.path.join(folder, "README.md"), ROOT)) or "# " + p["title"]
++        files = {}
++        for f in sorted(os.listdir(folder)):
++            if f.endswith(".java"):
++                files[f] = local_text(os.path.relpath(os.path.join(folder, f), ROOT)) or ""
++        note = ""
++        if p["requires"] == "mysql":
++            note = ("This program uses a database. Here it runs against an in-memory database in MySQL mode that "
++                    "setup.sql prepares for every run; the gradebook marks it on the real JDK as usual.")
++        return Question(qid, p["title"], md, _cases_in(folder), folder, p["kind"], note, p["requires"], files)
++    base = "lab/questions/%s/" % qid
++    folder = os.path.join(ROOT, base)
++    if os.path.isfile(os.path.join(folder, "README.md")):
++        md = local_text(base + "README.md")
++        cases = _cases_in(folder)
++    else:
++        md = fetch_text(base + "README.md", 60)
++        if md is None:
++            return None
++        folder, cases = "", []
++        for n in range(1, 11):
++            suf = "" if n == 1 else "-%d" % n
++            exp = fetch_text(base + "expected%s.txt" % suf, 60)
++            if exp is None:
++                break
++            cases.append((fetch_text(base + "input%s.txt" % suf, 60) or "", exp))
++    m = re.search(r"^#\s+(.+)$", md or "", re.M)
++    return Question(qid, m.group(1).strip() if m else qid, md or "", cases, folder, "lab")
++
++
++def question_title(qid):
++    q = question(qid)
++    return q.title if q else qid
+diff --git a/apps/labcore/mysql-shim/META-INF/services/java.sql.Driver b/apps/labcore/mysql-shim/META-INF/services/java.sql.Driver
+new file mode 100644
+index 0000000..f2b6414
+--- /dev/null
++++ b/apps/labcore/mysql-shim/META-INF/services/java.sql.Driver
+@@ -0,0 +1 @@
++lab.mysql.Driver
+diff --git a/apps/labcore/mysql-shim/lab/mysql/Driver.java b/apps/labcore/mysql-shim/lab/mysql/Driver.java
+new file mode 100644
+index 0000000..e034b52
+--- /dev/null
++++ b/apps/labcore/mysql-shim/lab/mysql/Driver.java
+@@ -0,0 +1,98 @@
++package lab.mysql;
++
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Paths;
++import java.security.AccessController;
++import java.security.PrivilegedAction;
++import java.sql.Connection;
++import java.sql.DriverManager;
++import java.sql.DriverPropertyInfo;
++import java.sql.SQLException;
++import java.sql.SQLFeatureNotSupportedException;
++import java.sql.Statement;
++import java.util.Properties;
++import java.util.logging.Logger;
++
++/**
++ * "jdbc:mysql://..." for the Java Lab student app: an in-memory H2 database in MySQL mode, so
++ * that Experiment 16 (JDBC) runs without a MySQL server. Each program run starts with an empty
++ * database; the question's setup.sql (system property lab.mysql.setup) creates its tables.
++ * The real MySQL server is used by CI (.github/workflows/ci.yml, job jdbc-experiment).
++ */
++public final class Driver implements java.sql.Driver {
++    static {
++        try {
++            DriverManager.registerDriver(new Driver());
++        } catch (SQLException e) {
++            throw new ExceptionInInitializerError(e);
++        }
++    }
++
++    private static boolean ready;
++
++    @Override
++    public boolean acceptsURL(String url) {
++        return url != null && url.startsWith("jdbc:mysql:");
++    }
++
++    @Override
++    public Connection connect(String url, Properties info) throws SQLException {
++        if (!acceptsURL(url)) {
++            return null;
++        }
++        String rest = url.substring("jdbc:mysql:".length()).replaceFirst("^//[^/]*", "");
++        String db = rest.replaceFirst("^/", "").replaceFirst("[?;].*$", "");
++        if (db.isEmpty()) {
++            db = "test";
++        }
++        if (!db.matches("[A-Za-z0-9_]{1,64}")) {
++            throw new SQLException("Unknown database '" + db + "'", "42000", 1049);
++        }
++        String h2 = "jdbc:h2:mem:" + db + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1";
++        Connection c = AccessController.doPrivileged((PrivilegedAction<Connection>) () -> {
++            try {
++                return new org.h2.Driver().connect(h2, new Properties());
++            } catch (SQLException e) {
++                throw new IllegalStateException(e);
++            }
++        });
++        synchronized (Driver.class) {
++            if (!ready) {
++                ready = true;
++                setup(c);
++            }
++        }
++        return c;
++    }
++
++    private static void setup(Connection c) throws SQLException {
++        String path = System.getProperty("lab.mysql.setup", "");
++        if (path.isEmpty()) {
++            return;
++        }
++        String sql = AccessController.doPrivileged((PrivilegedAction<String>) () -> {
++            try {
++                return Files.readString(Paths.get(path), StandardCharsets.UTF_8);
++            } catch (java.io.IOException e) {
++                return "";
++            }
++        });
++        try (Statement st = c.createStatement()) {
++            for (String part : sql.split(";")) {
++                String s = part.strip();
++                String u = s.toUpperCase(java.util.Locale.ROOT);
++                if (s.isEmpty() || u.startsWith("CREATE DATABASE") || u.startsWith("USE ") || u.startsWith("DROP DATABASE")) {
++                    continue;
++                }
++                st.execute(s);
++            }
++        }
++    }
++
++    @Override public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) { return new DriverPropertyInfo[0]; }
++    @Override public int getMajorVersion() { return 8; }
++    @Override public int getMinorVersion() { return 4; }
++    @Override public boolean jdbcCompliant() { return false; }
++    @Override public Logger getParentLogger() throws SQLFeatureNotSupportedException { throw new SQLFeatureNotSupportedException(); }
++}
+diff --git a/apps/labcore/sandbox.policy b/apps/labcore/sandbox.policy
+new file mode 100644
+index 0000000..b439e2c
+--- /dev/null
++++ b/apps/labcore/sandbox.policy
+@@ -0,0 +1,18 @@
++// Permissions of student programs run by the Java Lab student app (apps/labcore/sandbox.py).
++// Java 21 Security Manager; ${lab.work} is the program's own fresh working folder.
++// Not granted: files outside that folder, network, processes, reflection on private members,
++// class loaders, environment variables (except the three of Experiment 16), native code.
++// Libraries supplied by the app (H2 and the jdbc:mysql shim of Experiment 16).
++grant codeBase "file:${lab.lib}/-" {
++    permission java.security.AllPermission;
++};
++
++grant {
++    permission java.io.FilePermission "${lab.work}", "read";
++    permission java.io.FilePermission "${lab.work}${/}-", "read,write,delete";
++    permission java.util.PropertyPermission "*", "read";
++    permission java.lang.RuntimePermission "exitVM.*";
++    permission java.lang.RuntimePermission "getenv.DB_URL";
++    permission java.lang.RuntimePermission "getenv.DB_USER";
++    permission java.lang.RuntimePermission "getenv.DB_PASSWORD";
++};
+diff --git a/apps/labcore/sandbox.py b/apps/labcore/sandbox.py
+new file mode 100644
+index 0000000..1215fae
+--- /dev/null
++++ b/apps/labcore/sandbox.py
+@@ -0,0 +1,386 @@
++"""Compiles and runs student Java programs for the student app, on the real JDK 21.
++
++Safety, in layers (Streamlit Community Cloud has no containers):
++  * the app holds no secret: a program that escapes finds nothing worth taking;
++  * javac runs in one warm server process that never executes student code (LabJavac.java);
++  * every program runs in its own JVM under the Java 21 Security Manager with sandbox.policy:
++    no files outside its fresh working folder, no network, no processes, no reflection on
++    private members, no environment variables (except the three of Experiment 16);
++  * operating-system limits: CPU seconds, address space (bounds heap and threads), file size,
++    no core dumps, a wall-clock timeout that kills the whole process group, capped output;
++  * at most SLOTS programs run at the same time; the others wait their turn.
++
++Behaviour matches the gradebook (lab-system/grader): same main-class rule, same output
++normalisation, Locale en_US, UTF-8, 1 MB file limit, 10 s time limit.
++"""
++import base64
++import hashlib
++import os
++import queue
++import re
++import resource
++import shutil
++import signal
++import subprocess
++import tempfile
++import threading
++import time
++import urllib.request
++import uuid
++from dataclasses import dataclass, field
++
++from . import ROOT
++from .jdk import cache_dir, ensure_jdk
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++POLICY = os.path.join(HERE, "sandbox.policy")
++H2 = ("2.4.240", "29b70e427cc1c40cdc376283adbb0cc62853073797bb5fe5761f81fe73d57ce0",
++      "https://github.com/h2database/h2database/releases/download/version-2.4.240/h2-2.4.240.jar")
++TIME_LIMIT = 10.0          # seconds of wall-clock time per run (gradebook: 10)
++CPU_LIMIT = 10             # seconds of CPU time per run
++MAX_STDOUT = 64 * 1024     # kept like the gradebook
++MAX_STDERR = 16 * 1024
++MAX_SOURCE = 100_000       # characters of source code accepted
++SLOTS = max(2, min(4, os.cpu_count() or 2))
++AS_LIMIT = 2048 << 20      # address space: bounds heap, metaspace and the number of threads (about 128)
++FSIZE_LIMIT = 1 << 20      # no file the program writes may exceed 1 MB (gradebook: ulimit -f 1024)
++PRLIMIT = shutil.which("prlimit")
++SM_WARNING = re.compile(r"^WARNING: (A command line option has enabled the Security Manager|"
++                        r"The Security Manager is deprecated and will be removed in a future release)\s*$")
++CLASS_NAME = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]{0,63}\.java$")
++
++
++def normalise(text):
++    """Same comparison as the gradebook and the website: line endings, trailing spaces, outer blank lines."""
++    return "\n".join(line.rstrip() for line in text.replace("\r\n", "\n").split("\n")).strip()
++
++
++def file_name_for(code):
++    """File name javac needs: the public class, else Main.java (same as java-runner.js)."""
++    m = re.search(r"public\s+(?:final\s+|abstract\s+)*class\s+(\w+)", code)
++    return (m.group(1) if m else "Main") + ".java"
++
++
++def main_class(files):
++    """Class to run, by the gradebook's rule (lab-system/grader/grade.py)."""
++    names = [os.path.splitext(n)[0] for n in files]
++    if "Main" in names:
++        return "Main"
++    for text in files.values():
++        if re.search(r"static\s+void\s+main\s*\(", text):
++            m = re.search(r"public\s+(?:final\s+|abstract\s+)*class\s+(\w+)", text) or re.search(r"class\s+(\w+)", text)
++            if m:
++                return m.group(1)
++    return "Main"
++
++
++@dataclass
++class Diagnostic:
++    kind: str
++    file: str
++    line: int
++    column: int
++    message: str
++
++
++@dataclass
++class Compiled:
++    ok: bool
++    diagnostics: list
++    main: str
++    workdir: str
++    ms: int
++    files: dict = field(default_factory=dict)
++
++    def text(self):
++        """Diagnostics in javac's familiar form, with the source line and a caret."""
++        out = []
++        for d in self.diagnostics:
++            head = "%s:%d: %s: %s" % (d.file or "?", d.line, d.kind.lower().replace("mandatory_", ""), d.message) \
++                if d.line else "%s: %s" % (d.kind.lower(), d.message)
++            out.append(head)
++            src = self.files.get(d.file, "")
++            lines = src.split("\n")
++            if d.line and 0 < d.line <= len(lines):
++                out.append(lines[d.line - 1].rstrip())
++                out.append(" " * max(0, d.column - 1) + "^")
++        return "\n".join(out)
++
++    def cleanup(self):
++        shutil.rmtree(self.workdir, ignore_errors=True)
++
++
++@dataclass
++class RunResult:
++    stdout: str
++    stderr: str
++    exit_code: int
++    timed_out: bool
++    output_limited: bool
++    ms: int
++    files: dict = field(default_factory=dict)   # small text files the program wrote
++
++    @property
++    def outcome(self):
++        """The activity-log outcome used by lab.html: ok | exception | timeout."""
++        if self.timed_out:
++            return "timeout"
++        return "exception" if self.exit_code != 0 else "ok"
++
++
++class Toolchain:
++    """One per app process (st.cache_resource): JDK, libraries, compile server, run slots."""
++
++    def __init__(self, log=lambda msg: None):
++        self.log = log
++        self.java_home = ensure_jdk(log)
++        self.java = os.path.join(self.java_home, "bin", "java")
++        self.base = os.path.join(cache_dir(), "sandbox")
++        self.runs = os.path.join(self.base, "runs")
++        self.lib = os.path.join(self.base, "lib")
++        os.makedirs(self.runs, exist_ok=True)
++        os.makedirs(self.lib, exist_ok=True)
++        self._lock = threading.Lock()
++        self._slots = threading.BoundedSemaphore(SLOTS)
++        self._server = None
++        self._lines = None
++        self._jdbc_cp = self._prepare_jdbc()
++        self._start_server()
++
++    # ------------------------------------------------------------------ libraries
++    def _prepare_jdbc(self):
++        """H2 (downloaded, checksum verified) and the jdbc:mysql shim; None when unavailable."""
++        version, sha, url = H2
++        h2 = os.path.join(self.lib, "h2-%s.jar" % version)
++        try:
++            if not os.path.exists(h2):
++                req = urllib.request.Request(url, headers={"User-Agent": "java-lab-streamlit"})
++                with urllib.request.urlopen(req, timeout=60) as r:
++                    data = r.read()
++                if hashlib.sha256(data).hexdigest() != sha:
++                    raise OSError("H2 checksum mismatch")
++                with open(h2 + ".part", "wb") as f:
++                    f.write(data)
++                os.replace(h2 + ".part", h2)
++            shim = os.path.join(self.lib, "lab-mysql.jar")
++            if not os.path.exists(shim):
++                build = tempfile.mkdtemp(dir=self.base)
++                src = os.path.join(HERE, "mysql-shim")
++                rc = subprocess.run([os.path.join(self.java_home, "bin", "javac"), "-Xlint:none", "-nowarn", "-cp", h2,
++                                     "-d", build, os.path.join(src, "lab", "mysql", "Driver.java")],
++                                    capture_output=True, text=True, timeout=120)
++                if rc.returncode != 0:
++                    raise OSError("shim does not compile: " + rc.stderr[-500:])
++                shutil.copytree(os.path.join(src, "META-INF"), os.path.join(build, "META-INF"))
++                subprocess.run([os.path.join(self.java_home, "bin", "jar"), "cf", shim + ".part", "-C", build, "."],
++                               check=True, capture_output=True, timeout=120)
++                os.replace(shim + ".part", shim)
++                shutil.rmtree(build, ignore_errors=True)
++            return os.pathsep.join([shim, h2])
++        except (OSError, subprocess.SubprocessError) as e:
++            self.log("JDBC support unavailable: %s" % e)
++            return None
++
++    @property
++    def jdbc_available(self):
++        return self._jdbc_cp is not None
++
++    # ------------------------------------------------------------------ compile server
++    def _start_server(self):
++        classes = os.path.join(self.base, "server")
++        os.makedirs(classes, exist_ok=True)
++        if not os.path.exists(os.path.join(classes, "LabJavac.class")) or \
++                os.path.getmtime(os.path.join(classes, "LabJavac.class")) < os.path.getmtime(os.path.join(HERE, "LabJavac.java")):
++            subprocess.run([os.path.join(self.java_home, "bin", "javac"), "-d", classes, os.path.join(HERE, "LabJavac.java")],
++                           check=True, capture_output=True, timeout=120)
++        self._server = subprocess.Popen(
++            [self.java, "-Xmx256m", "-XX:+UseSerialGC", "-XX:-UsePerfData", "-Xshare:auto", "-cp", classes, "LabJavac"],
++            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=self._env(),
++            text=True, encoding="utf-8", bufsize=1)
++        self._lines = queue.Queue()
++        server, lines = self._server, self._lines
++
++        def pump():
++            for line in server.stdout:
++                lines.put(line.rstrip("\n"))
++            lines.put(None)
++        threading.Thread(target=pump, daemon=True).start()
++        first = self._lines.get(timeout=120)
++        if first != "READY":
++            raise RuntimeError("compile server did not start")
++
++    def _restart_server(self):
++        try:
++            self._server.kill()
++        except OSError:
++            pass
++        self._start_server()
++
++    def _request(self, src, out, timeout=30.0):
++        rid = uuid.uuid4().hex[:12]
++        self._server.stdin.write("%s\t%s\t%s\n" % (rid, src, out))
++        self._server.stdin.flush()
++        deadline = time.monotonic() + timeout
++        while True:
++            line = self._lines.get(timeout=max(0.1, deadline - time.monotonic()))
++            if line is None:
++                raise RuntimeError("compile server stopped")
++            head = line.split("\t")
++            if len(head) == 3 and head[0] == rid:
++                break
++        diags = []
++        for _ in range(int(head[2])):
++            kind, ln, col, msg = self._lines.get(timeout=max(0.1, deadline - time.monotonic())).split("\t")
++            name, _, text = base64.b64decode(msg).decode("utf-8").partition("\x00")
++            diags.append(Diagnostic(kind, name, int(ln), int(col), text))
++        return head[1] == "1", diags
++
++    @staticmethod
++    def _env():
++        env = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}
++        return env
++
++    def compile(self, files):
++        """files: {"Main.java": source}. Returns Compiled (call .cleanup() when done)."""
++        work = tempfile.mkdtemp(prefix="c-", dir=self.runs)
++        src, classes = os.path.join(work, "src"), os.path.join(work, "classes")
++        os.makedirs(src)
++        os.makedirs(classes)
++        clean = {}
++        for name, text in files.items():
++            if not CLASS_NAME.match(name):
++                raise ValueError("invalid file name %r" % name)
++            if len(text) > MAX_SOURCE:
++                shutil.rmtree(work, ignore_errors=True)
++                return Compiled(False, [Diagnostic("ERROR", name, 0, 0, "the program is longer than %d characters" % MAX_SOURCE)],
++                                "Main", work, 0, files)
++            clean[name] = text
++            with open(os.path.join(src, name), "w", encoding="utf-8") as f:
++                f.write(text)
++        t0 = time.monotonic()
++        with self._lock:
++            try:
++                ok, diags = self._request(src, classes)
++            except (queue.Empty, RuntimeError, OSError, ValueError) as e:
++                self._restart_server()
++                ok, diags = False, [Diagnostic("ERROR", "", 0, 0, "the compiler did not answer (%s); press Run again" % type(e).__name__)]
++        return Compiled(ok, diags, main_class(clean), work, int((time.monotonic() - t0) * 1000), clean)
++
++    # ------------------------------------------------------------------ running
++    def run(self, compiled, stdin_text="", time_limit=TIME_LIMIT, setup_sql=None, wait=60.0):
++        """Runs compiled.main once in a fresh folder. Raises TimeoutError when no slot is free in `wait` s."""
++        if not self._slots.acquire(timeout=wait):
++            raise TimeoutError("the server is busy; press Run again in a few seconds")
++        work = tempfile.mkdtemp(prefix="r-", dir=self.runs)
++        try:
++            return self._run(compiled, stdin_text, time_limit, setup_sql, work)
++        finally:
++            shutil.rmtree(work, ignore_errors=True)
++            self._slots.release()
++
++    def _run(self, compiled, stdin_text, time_limit, setup_sql, work):
++        cp = os.path.join(compiled.workdir, "classes")
++        args = [self.java,
++                "-Djava.security.manager", "-Djava.security.policy==" + POLICY,
++                "-Dlab.work=" + work, "-Dlab.lib=" + self.lib, "-Djava.io.tmpdir=" + work,
++                "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8",
++                "-Duser.language=en", "-Duser.country=US",
++                "-Xmx128m", "-Xss8m", "-XX:TieredStopAtLevel=1", "-XX:+UseSerialGC", "-XX:ReservedCodeCacheSize=32m",
++                "-XX:MaxMetaspaceSize=64m", "-XX:CompressedClassSpaceSize=32m", "-XX:-UsePerfData",
++                "-XX:ErrorFile=/dev/null", "-Xshare:auto"]
++        if self._jdbc_cp:
++            cp += os.pathsep + self._jdbc_cp
++            if setup_sql:
++                args.append("-Dlab.mysql.setup=" + setup_sql)
++        args += ["-cp", cp, compiled.main]
++        # Limits are set by util-linux prlimit before java starts (a Python preexec_fn is not safe in
++        # Streamlit's threaded server); the fallback is used only where prlimit is missing.
++        preexec = None
++        if PRLIMIT:
++            args = [PRLIMIT, "--cpu=%d:%d" % (CPU_LIMIT, CPU_LIMIT + 1), "--as=%d" % AS_LIMIT, "--fsize=%d" % FSIZE_LIMIT,
++                    "--core=0", "--nofile=256", "--"] + args
++        else:
++            def preexec():
++                resource.setrlimit(resource.RLIMIT_CPU, (CPU_LIMIT, CPU_LIMIT + 1))
++                resource.setrlimit(resource.RLIMIT_AS, (AS_LIMIT, AS_LIMIT))
++                resource.setrlimit(resource.RLIMIT_FSIZE, (FSIZE_LIMIT, FSIZE_LIMIT))
++                resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
++                resource.setrlimit(resource.RLIMIT_NOFILE, (256, 256))
++
++        t0 = time.monotonic()
++        proc = subprocess.Popen(args, cwd=work, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++                                env=self._env(), start_new_session=True, preexec_fn=preexec)
++        out, err, limited = bytearray(), bytearray(), threading.Event()
++
++        def reader(stream, buf, cap):
++            while True:
++                chunk = stream.read1(8192) if hasattr(stream, "read1") else stream.read(8192)
++                if not chunk:
++                    return
++                room = cap - len(buf)
++                if room > 0:
++                    buf.extend(chunk[:room])
++                if len(chunk) > room:
++                    limited.set()
++                    _kill(proc)
++                    return
++
++        threads = [threading.Thread(target=reader, args=(proc.stdout, out, MAX_STDOUT), daemon=True),
++                   threading.Thread(target=reader, args=(proc.stderr, err, MAX_STDERR), daemon=True)]
++        for t in threads:
++            t.start()
++        try:
++            proc.stdin.write(stdin_text.encode("utf-8"))
++            proc.stdin.close()
++        except (BrokenPipeError, OSError):
++            pass
++        timed_out = False
++        try:
++            proc.wait(timeout=time_limit)
++        except subprocess.TimeoutExpired:
++            timed_out = True
++            _kill(proc)
++            proc.wait()
++        for t in threads:
++            t.join(timeout=2)
++        for stream in (proc.stdout, proc.stderr):
++            try:
++                stream.close()
++            except OSError:
++                pass
++        ms = int((time.monotonic() - t0) * 1000)
++        code = proc.returncode
++        if code in (-signal.SIGXCPU, -signal.SIGKILL) and not limited.is_set():
++            timed_out = True
++        stderr = "\n".join(l for l in err.decode("utf-8", "replace").split("\n") if not SM_WARNING.match(l))
++        written = {}
++        for name in sorted(os.listdir(work))[:10]:
++            p = os.path.join(work, name)
++            if os.path.isfile(p) and os.path.getsize(p) <= 4096:
++                with open(p, "rb") as f:
++                    data = f.read()
++                try:
++                    written[name] = data.decode("utf-8")
++                except UnicodeDecodeError:
++                    written[name] = "(binary file, %d bytes)" % len(data)
++        return RunResult(out.decode("utf-8", "replace"), stderr.strip("\n"), code if code is not None else -1,
++                         timed_out, limited.is_set(), ms, written)
++
++
++def _kill(proc):
++    try:
++        os.killpg(proc.pid, signal.SIGKILL)
++    except (ProcessLookupError, PermissionError, OSError):
++        try:
++            proc.kill()
++        except OSError:
++            pass
++
++
++def setup_sql_for(qdir):
++    """setup.sql of a question folder (Experiment 16), if present."""
++    p = os.path.join(qdir, "setup.sql") if qdir else None
++    return p if p and os.path.isfile(p) else None
++
++
++__all__ = ["Toolchain", "Compiled", "RunResult", "normalise", "file_name_for", "main_class", "setup_sql_for", "ROOT"]
+diff --git a/apps/student/.streamlit/config.toml b/apps/student/.streamlit/config.toml
+new file mode 100644
+index 0000000..3122e47
+--- /dev/null
++++ b/apps/student/.streamlit/config.toml
+@@ -0,0 +1,13 @@
++[server]
++headless = true
++maxUploadSize = 1
++
++[browser]
++gatherUsageStats = false
++
++[client]
++toolbarMode = "minimal"
++showErrorDetails = "none"
++
++[theme]
++primaryColor = "#0b6e8a"
+diff --git a/apps/student/app.py b/apps/student/app.py
+new file mode 100644
+index 0000000..6f3acfc
+--- /dev/null
++++ b/apps/student/app.py
+@@ -0,0 +1,354 @@
++"""Java Lab, student app (Streamlit Community Cloud).
++
++Students type a program (pasting and dropping are blocked and recorded, as on the website's Lab
++page), run and check it on the real JDK 21 on the server, and submit an encrypted package as a
++GitHub issue. The package has the website's format, so the intake robot and the private gradebook
++treat both alike. The app holds no secret: it encrypts with the teacher's PUBLIC key only.
++
++    streamlit run apps/student/app.py          (from the repository root)
++"""
++import datetime as dt
++import hashlib
++import os
++import shutil
++import sys
++import urllib.parse
++
++import streamlit as st
++import streamlit.components.v1 as components
++
++APP = os.path.dirname(os.path.abspath(__file__))
++sys.path.insert(0, os.path.dirname(APP))
++from labcore import ROOT, labdata, sandbox  # noqa: E402
++from labcore.jdk import VERSION as JDK_VERSION, cache_dir  # noqa: E402
++import activity  # noqa: E402  tools/lab/activity.py
++import labcrypto  # noqa: E402  tools/lab/labcrypto.py
++
++FORMAT = 1
++MAX_ARMOUR = 60000             # a GitHub issue body holds 65 536 characters (same as lab.js)
++
++st.set_page_config(page_title="Java Lab", page_icon=":material/terminal:", layout="wide")
++
++
++# ---------------------------------------------------------------------- shared resources
++@st.cache_resource(show_spinner=False)
++def toolchain():
++    return sandbox.Toolchain(print)
++
++
++@st.cache_resource(show_spinner=False)
++def editor_component():
++    """The editor folder plus Ace and lab-activity.js from the website (one source of truth)."""
++    build = os.path.join(cache_dir(), "editor-component")
++    shutil.rmtree(build, ignore_errors=True)
++    shutil.copytree(os.path.join(APP, "editor"), build)
++    os.makedirs(os.path.join(build, "ace"), exist_ok=True)
++    ace = os.path.join(ROOT, "site", "assets", "vendor", "ace")
++    for f in ("ace.js", "mode-java.js", "theme-chrome.js", "theme-tomorrow_night.js", "LICENSE"):
++        shutil.copy(os.path.join(ace, f), os.path.join(build, "ace", f))
++    shutil.copy(os.path.join(ROOT, "site", "assets", "js", "lab-activity.js"), os.path.join(build, "lab-activity.js"))
++    return components.declare_component("java_lab_editor", path=build)
++
++
++def now_iso():
++    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
++
++
++def ist(t):
++    return t.astimezone(dt.timezone(dt.timedelta(hours=5, minutes=30))).strftime("%H:%M")
++
++
++ss = st.session_state
++ss.setdefault("ident", None)
++ss.setdefault("ident_req", {"action": "load", "nonce": "load"})
++ss.setdefault("processed", set())
++ss.setdefault("results", {})
++ss.setdefault("last_run", {})
++ss.setdefault("last_check", {})
++ss.setdefault("server_log", {})
++ss.setdefault("packages", {})
++
++editor = editor_component()
++
++# ---------------------------------------------------------------------- identity (kept in the browser)
++stored = editor(mode="identity", action=ss.ident_req["action"], identity=ss.ident_req.get("identity"),
++                nonce=ss.ident_req["nonce"], key="identity-store", default=None)
++if stored and stored.get("nonce") == "load" and ss.ident is None and stored.get("identity") and not ss.get("ident_loaded"):
++    ss.ident_loaded = True
++    cand = stored["identity"]
++    if isinstance(cand, dict) and cand.get("regno") and cand.get("name"):
++        ss.ident = {"regno": str(cand["regno"])[:20], "name": str(cand["name"])[:80]}
++
++control, source = labdata.control()
++pattern = labdata.regno_pattern(control)
++open_now = labdata.open_sessions(control)
++
++with st.sidebar:
++    st.subheader("Student")
++    with st.form("identity"):
++        regno = st.text_input("Register number", value=(ss.ident or {}).get("regno", ""), placeholder="24BCL0123")
++        name = st.text_input("Full name", value=(ss.ident or {}).get("name", ""))
++        if st.form_submit_button("Start" if not ss.ident else "Change", type="primary"):
++            regno = "".join(regno.split()).upper()
++            name = " ".join(name.split())
++            if not pattern.fullmatch(regno):
++                st.error("Register number must look like 24BCL0123.")
++            elif len(name) < 3:
++                st.error("Enter your full name.")
++            else:
++                ss.ident = {"regno": regno, "name": name}
++                ss.ident_req = {"action": "save", "identity": ss.ident, "nonce": "save-" + os.urandom(4).hex()}
++                st.rerun()
++    if ss.ident:
++        st.caption("Working as **%s** %s" % (ss.ident["regno"], ss.ident["name"]))
++        if st.button("Remove my work from this computer", help="Use this on a shared PC before you leave."):
++            ss.ident_req = {"action": "forget", "identity": ss.ident, "nonce": "forget-" + os.urandom(4).hex()}
++            ss.ident = None
++            for k in ("results", "last_run", "last_check", "server_log", "packages"):
++                ss[k] = {}
++            st.rerun()
++    st.divider()
++    st.caption("Programs run on Java %s (Eclipse Temurin), the same JDK the teacher marks with. "
++               "Lab status read from %s." % (JDK_VERSION, source))
++
++# ---------------------------------------------------------------------- banner
++st.title("Java Lab")
++if open_now:
++    lines = []
++    for s, w in open_now:
++        end = labdata.window_end(w)
++        lines.append("**%s is OPEN**%s%s" % (s["id"], (": " + s["title"]) if s.get("title") else "",
++                                              " (closes automatically at %s IST)" % ist(end) if end else " (until the teacher closes it)"))
++    st.success("  \n".join(lines) + "  \nThe time GitHub records when you create the issue decides whether it is accepted.")
++else:
++    st.info("No assessment is open now. You can practise any program; submissions open during the lab hour.")
++
++try:
++    with st.spinner("Preparing Java 21 on the server (the first start after a pause takes about a minute)..."):
++        tc = toolchain()
++except Exception as e:  # noqa: BLE001
++    st.error("Java could not be prepared on the server: %s. Reload the page in a minute." % e)
++    st.stop()
++
++if not ss.ident:
++    st.write("Enter your register number and full name in the sidebar and press **Start**.")
++    st.stop()
++
++# ---------------------------------------------------------------------- mode and question
++modes = [s["id"] for s, _ in open_now] + ["practice"]
++labels = {s["id"]: "%s%s (open)" % (s["id"], (": " + s["title"]) if s.get("title") else "") for s, _ in open_now}
++labels["practice"] = "Practice (no submission)"
++c1, c2 = st.columns([1, 2])
++with c1:
++    mode = st.selectbox("Assessment", modes, format_func=lambda m: labels[m], key="mode")
++if mode == "practice":
++    local_q = sorted(d for d in os.listdir(os.path.join(ROOT, "lab", "questions"))
++                     if os.path.isfile(os.path.join(ROOT, "lab", "questions", d, "README.md")))
++    qids = labdata.course_ids() + local_q
++else:
++    qids = list(next(s for s, _ in open_now if s["id"] == mode).get("questions", []))
++with c2:
++    qid = st.selectbox("Question", qids, format_func=lambda q: "%s: %s" % (q, labdata.question_title(q)), key="qid:" + mode)
++q = labdata.question(qid) if qid else None
++if q is None:
++    st.error("Question %s was not found (lab/questions/%s)." % (qid, qid))
++    st.stop()
++
++work_key = "lab-work:%s:%s:%s" % (ss.ident["regno"], mode, q.id)
++session_obj = labdata.ctl.find(control, mode) if mode != "practice" else None
++is_open = bool(session_obj and any(labdata.ctl.in_window(w, labdata.utcnow()) for w in session_obj.get("windows", [])))
++key_pem = labdata.public_key() if mode != "practice" else None
++hint = ("Practice work is not submitted." if mode == "practice" else
++        "This assessment is closed." if not is_open else
++        "The teacher has not published the submission key yet." if not key_pem else "")
++
++left, right = st.columns([5, 6], gap="large")
++with left:
++    st.subheader(q.title)
++    if q.note:
++        st.warning(q.note)
++    body = q.markdown
++    if body.lstrip().startswith("# "):                      # the title is shown above
++        body = body.lstrip().split("\n", 1)[1] if "\n" in body.lstrip() else ""
++    st.markdown(body)
++    for i, (inp, exp) in enumerate(q.cases, 1):
++        with st.expander("Sample case %d" % i, expanded=i == 1):
++            st.caption("Input")
++            st.code(inp or "(none)", language=None)
++            st.caption("Expected output")
++            st.code(exp, language=None)
++
++with right:
++    value = editor(mode="editor", workKey=work_key, defaultStdin=q.cases[0][0] if q.cases else "",
++                   caseCount=len(q.cases), submitOpen=not hint, submitHint=hint,
++                   confirmText="Submit %s for %s as %s %s?" % (q.id, mode, ss.ident["regno"], ss.ident["name"]),
++                   result=ss.results.get(work_key), height=420, key="editor:" + work_key, default=None)
++    out = st.container()
++
++
++# ---------------------------------------------------------------------- actions
++def log(action, code, outcome):
++    ss.server_log.setdefault(work_key, []).append([now_iso(), action, activity.fnv(code), outcome])
++    del ss.server_log[work_key][:-200]
++
++
++def compile_or_report(files, code):
++    c = tc.compile(files)
++    if not c.ok:
++        log("compile", code, "compile-error")
++    return c
++
++
++def do_run(v):
++    code = v["code"]
++    files = {sandbox.file_name_for(code): code}
++    c = compile_or_report(files, code)
++    try:
++        if not c.ok:
++            return {"event": ["x", "compile-error", c.ms], "kind": "bad", "message": "The program does not compile.",
++                    "view": {"type": "compile", "text": c.text()}}
++        r = tc.run(c, v.get("stdin", ""), setup_sql=sandbox.setup_sql_for(q.folder))
++    except TimeoutError as e:
++        return {"event": None, "kind": "warn", "message": str(e), "view": None}
++    finally:
++        c.cleanup()
++    log("run", code, r.outcome)
++    ss.last_run[work_key] = {"at": now_iso(), "outcome": r.outcome, "ms": r.ms, "stdin": v.get("stdin", "")[:2000],
++                             "stdout": r.stdout[:4000]}
++    return {"event": ["x", r.outcome, r.ms], "kind": "" if r.outcome == "ok" else "warn",
++            "message": "Finished in %d ms" % r.ms if r.outcome == "ok" else "Stopped: %s" % r.outcome,
++            "view": {"type": "run", "stdout": r.stdout, "stderr": r.stderr, "timed_out": r.timed_out,
++                     "limited": r.output_limited, "files": r.files, "exit": r.exit_code}}
++
++
++def do_check(v):
++    code = v["code"]
++    files = {sandbox.file_name_for(code): code}
++    c = compile_or_report(files, code)
++    try:
++        if not c.ok:
++            return {"event": ["x", "compile-error", 0], "kind": "bad", "message": "The program does not compile.",
++                    "view": {"type": "compile", "text": c.text()}}
++        rows, passed = [], 0
++        for inp, exp in q.cases:
++            r = tc.run(c, inp, setup_sql=sandbox.setup_sql_for(q.folder))
++            ok = not r.timed_out and sandbox.normalise(r.stdout) == sandbox.normalise(exp)
++            passed += ok
++            rows.append({"ok": ok, "input": inp, "expected": exp, "stdout": r.stdout, "stderr": r.stderr,
++                         "timed_out": r.timed_out})
++    except TimeoutError as e:
++        return {"event": None, "kind": "warn", "message": str(e), "view": None}
++    finally:
++        c.cleanup()
++    total = len(q.cases)
++    log("check", code, "%d/%d" % (passed, total))
++    ss.last_check[work_key] = {"at": now_iso(), "passed": passed, "total": total}
++    return {"event": ["c", passed, total], "kind": "" if passed == total else "warn",
++            "message": "%d of %d sample cases passed." % (passed, total), "view": {"type": "check", "rows": rows}}
++
++
++def do_submit(v):
++    control_now, _ = labdata.control(ttl=5)
++    s = labdata.ctl.find(control_now, mode)
++    if not s or not any(labdata.ctl.in_window(w, labdata.utcnow()) for w in s.get("windows", [])):
++        return {"event": None, "kind": "bad", "message": "This assessment is not open now.", "view": None}
++    pem = labdata.public_key(ttl=5)
++    if not pem:
++        return {"event": None, "kind": "bad", "message": "The teacher has not published the submission key yet.", "view": None}
++    code = v["code"]
++    events = v.get("events") or []
++    payload = {
++        "format": FORMAT, "kind": "lab-submission", "session": mode, "question": q.id,
++        "regno": ss.ident["regno"], "name": ss.ident["name"], "files": {sandbox.file_name_for(code): code},
++        "createdAt": now_iso(), "timeZone": str(v.get("timeZone", ""))[:64], "userAgent": str(v.get("userAgent", ""))[:300],
++        "page": "streamlit:student-app",
++        "activity": {"format": FORMAT, "t0": v.get("t0"), "events": events, "trimmed": False},
++        "summary": activity.summarise(events, code),
++        "lastRun": ss.last_run.get(work_key), "lastCheck": ss.last_check.get(work_key),
++        "server": {"app": "apps/student", "jdk": JDK_VERSION, "log": ss.server_log.get(work_key, [])},
++    }
++    binary = labcrypto.encrypt(payload, pem)
++    armour = labcrypto.armour(binary)
++    if len(armour) > MAX_ARMOUR:
++        payload["activity"] = dict(payload["activity"], events=[e for e in events if e and e[0] not in ("i", "r")], trimmed=True)
++        binary = labcrypto.encrypt(payload, pem)
++        armour = labcrypto.armour(binary)
++    if len(armour) > MAX_ARMOUR:
++        return {"event": None, "kind": "bad", "message": "The program is too long to submit (more than about 40 000 characters).",
++                "view": None}
++    receipt = labcrypto.sha256(binary)[:16]
++    log("submit", code, receipt)
++    fields = {"template": "lab-submission.yml", "title": "[Lab] %s %s" % (mode, q.id), "session": mode,
++              "question": q.id, "receipt": receipt}
++    if len(armour) < 5000:
++        fields["package"] = armour
++    url = "https://github.com/%s/issues/new?%s" % (labdata.REPO, urllib.parse.urlencode(fields))
++    mine = "https://github.com/%s/issues?%s" % (labdata.REPO, urllib.parse.urlencode({"q": "is:issue author:@me label:lab-submission"}))
++    ss.packages[work_key] = {"armour": armour, "receipt": receipt, "key": labcrypto.key_id(pem), "url": url, "mine": mine}
++    return {"event": None, "kind": "", "message": "Package made. Copy it and create the GitHub issue (below).",
++            "view": {"type": "submit"}}
++
++
++if value and value.get("nonce") and value["nonce"] not in ss.processed:
++    ss.processed.add(value["nonce"])
++    action = value.get("action")
++    handler = {"run": do_run, "check": do_check, "submit": do_submit}.get(action)
++    if handler and isinstance(value.get("code"), str):
++        with out:
++            with st.spinner("Working on the server..."):
++                res = handler(value)
++        res["nonce"] = value["nonce"]
++        ss.results[work_key] = res
++        st.rerun()
++
++# ---------------------------------------------------------------------- results
++res = ss.results.get(work_key)
++view = (res or {}).get("view")
++with out:
++    if view and view["type"] == "compile":
++        st.error("The program does not compile.")
++        st.code(view["text"], language=None)
++    elif view and view["type"] == "run":
++        st.caption("Output")
++        st.code(view["stdout"] or "(no output)", language=None, wrap_lines=True)
++        if view["stderr"]:
++            st.error("Error output")
++            st.code(view["stderr"], language=None)
++        if view["timed_out"]:
++            st.warning("Stopped: time limit reached (endless loop, or waiting for more keyboard input than given).")
++        if view["limited"]:
++            st.warning("Stopped: too much output.")
++        if view["files"]:
++            with st.expander("Files the program wrote (%d)" % len(view["files"])):
++                for name, text in view["files"].items():
++                    st.caption(name)
++                    st.code(text, language=None)
++    elif view and view["type"] == "check":
++        rows = view["rows"]
++        passed = sum(r["ok"] for r in rows)
++        (st.success if passed == len(rows) else st.warning)(
++            "%d of %d sample cases passed. The teacher also uses other, hidden cases." % (passed, len(rows)))
++        for i, r in enumerate(rows, 1):
++            if r["ok"]:
++                st.write("Sample case %d: passed" % i)
++                continue
++            with st.expander("Sample case %d: different output" % i, expanded=True):
++                a, b = st.columns(2)
++                a.caption("Expected")
++                a.code(r["expected"], language=None, wrap_lines=True)
++                b.caption("Your program")
++                b.code(r["stdout"] or "(no output)", language=None, wrap_lines=True)
++                if r["stderr"]:
++                    st.code(r["stderr"], language=None)
++                if r["timed_out"]:
++                    st.warning("Stopped: time limit reached.")
++    pkg = ss.packages.get(work_key)
++    if pkg and view and view["type"] == "submit":
++        st.success("Receipt `%s` (key %s). The reply on GitHub shows the same receipt." % (pkg["receipt"], pkg["key"]))
++        st.markdown("1. Copy the package with the copy icon at the top right of the box.\n"
++                    "2. Press **Open GitHub**, click in **Package**, paste (Ctrl+V), press **Create**.\n"
++                    "3. Wait for the reply on that page: **Accepted** (with the time).")
++        st.code(pkg["armour"], language=None, height=180)
++        b1, b2 = st.columns(2)
++        b1.link_button("Open GitHub", pkg["url"], type="primary")
++        b2.link_button("My submissions", pkg["mine"])
+diff --git a/apps/student/editor/editor.css b/apps/student/editor/editor.css
+new file mode 100644
+index 0000000..0617ca6
+--- /dev/null
++++ b/apps/student/editor/editor.css
+@@ -0,0 +1,27 @@
++:root {
++  --bg: #ffffff; --fg: #1f2937; --muted: #5b6472; --line: #d5dae1; --accent: #0b6e8a; --accent-fg: #ffffff;
++  --warn: #9a5b00; --bad: #b3261e; --field: #f7f8fa;
++}
++:root[data-theme="dark"] {
++  --bg: #0e1117; --fg: #e6e9ef; --muted: #a1a9b6; --line: #343a46; --accent: #4fb3cf; --accent-fg: #0e1117;
++  --warn: #f0b35a; --bad: #ff8a80; --field: #161b24;
++}
++* { box-sizing: border-box; }
++html, body { margin: 0; padding: 0; background: transparent; color: var(--fg);
++  font: 14px/1.45 "Source Sans Pro", "Segoe UI", system-ui, -apple-system, sans-serif; }
++.bar { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; justify-content: space-between; margin: 0 0 6px; }
++.file { font: 600 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
++.stats { color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
++.stats b { color: var(--fg); font-weight: 600; }
++.editor { width: 100%; height: 420px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; }
++.label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 13px; }
++textarea { width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: 6px; padding: 8px;
++  background: var(--field); color: var(--fg); font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
++.buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
++button { border: 1px solid var(--line); background: var(--field); color: var(--fg); border-radius: 6px;
++  padding: 7px 14px; font: inherit; cursor: pointer; min-height: 36px; }
++button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
++button:disabled { opacity: .45; cursor: not-allowed; }
++.status { color: var(--muted); font-size: 13px; }
++.status.warn { color: var(--warn); }
++.status.bad { color: var(--bad); }
+diff --git a/apps/student/editor/editor.js b/apps/student/editor/editor.js
+new file mode 100644
+index 0000000..7a2c91b
+--- /dev/null
++++ b/apps/student/editor/editor.js
+@@ -0,0 +1,161 @@
++// Streamlit component of the Java Lab student app (apps/student/app.py).
++// The editor, its typing log, paste and drop blocking and the work saved in this browser are
++// those of the website's Lab page: Recorder, summarise and fnv come from lab-activity.js
++// (copied here unchanged by the app at start-up), so the gradebook reads both alike.
++// Compiling, running and the encrypted package are done by the app on the server (real JDK 21).
++import { Recorder, summarise, fnv } from './lab-activity.js';
++
++const $ = id => document.getElementById(id);
++let args = null, editor = null, recorder = null, work = null, pending = null, pendingTimer = null;
++let seenResult = null, initialised = false, mode = null, handled = null;
++
++// ---------- Streamlit component protocol (API version 1) ----------
++function post(type, data = {}) { window.parent.postMessage({ isStreamlitMessage: true, type, ...data }, '*'); }
++function setValue(value) { post('streamlit:setComponentValue', { value, dataType: 'json' }); }
++let lastHeight = -1;
++function fitHeight() {      // height of the content itself (the frame's own height must not feed back)
++  const h = mode === 'editor' ? Math.ceil($('app').getBoundingClientRect().bottom + window.scrollY) + 4 : 0;
++  if (h !== lastHeight) { lastHeight = h; post('streamlit:setFrameHeight', { height: h }); }
++}
++new ResizeObserver(fitHeight).observe($('app'));
++
++function safeGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
++function safeSet(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }
++function safeKeys() { try { return Object.keys(localStorage); } catch { return []; } }
++function safeRemove(k) { try { localStorage.removeItem(k); } catch { /* storage unavailable */ } }
++
++window.addEventListener('message', ev => {
++  const d = ev.data;
++  if (!d || d.type !== 'streamlit:render') return;
++  args = d.args || {};
++  const dark = d.theme && d.theme.base === 'dark';
++  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
++  if (editor) editor.setTheme(dark ? 'ace/theme/tomorrow_night' : 'ace/theme/chrome');
++  mode = args.mode;
++  if (mode === 'identity') identity(); else editorRender();
++  fitHeight();
++});
++post('streamlit:componentReady', { apiVersion: 1 });
++
++// ---------- identity kept in this browser ----------
++function identity() {
++  if (handled === args.nonce) return;
++  handled = args.nonce;
++  if (args.action === 'save' && args.identity) {
++    safeSet('lab-identity', JSON.stringify(args.identity));
++    setValue({ nonce: args.nonce, saved: true });
++  } else if (args.action === 'forget') {
++    const regno = args.identity && args.identity.regno;
++    for (const k of safeKeys()) if (regno && k.startsWith(`lab-work:${regno}:`)) safeRemove(k);
++    safeRemove('lab-identity');
++    setValue({ nonce: args.nonce, forgotten: true });
++  } else {
++    let stored = null;
++    try { stored = JSON.parse(safeGet('lab-identity')); } catch { stored = null; }
++    setValue({ nonce: args.nonce, identity: stored && stored.regno ? stored : null });
++  }
++}
++
++// ---------- editor ----------
++let saveTimer = null;
++function saveNow() {
++  clearTimeout(saveTimer);
++  saveTimer = null;
++  work.code = editor.getValue();
++  work.stdin = $('stdin').value;
++  work.updated = Date.now();
++  if (!safeSet(args.workKey, JSON.stringify(work))) status('This browser does not allow saving: submit before you leave.', 'warn');
++}
++function save() {
++  clearTimeout(saveTimer);
++  saveTimer = setTimeout(() => { saveNow(); stats(); }, 300);
++}
++window.addEventListener('pagehide', () => { if (work && editor) saveNow(); });
++
++function fileName(code) {
++  const m = code.match(/public\s+(?:final\s+|abstract\s+)*class\s+(\w+)/);
++  return (m ? m[1] : 'Main') + '.java';
++}
++function stats() {
++  const s = summarise(work.events, editor.getValue());
++  const min = ms => (ms / 60000).toFixed(1);
++  $('file').textContent = fileName(editor.getValue());
++  $('stats').innerHTML = [
++    ['Typed', s.typedChars], ['Active', `${min(s.activeMs)} min`], ['Runs', s.runs],
++    ['Best check', s.bestTotal ? `${s.bestPassed}/${s.bestTotal}` : '-'],
++    ['Pastes blocked', s.pasteBlocked], ['Left the page', s.awayCount],
++  ].map(([k, v]) => `<span>${k}: <b>${v}</b></span>`).join('');
++}
++function status(text, kind = '') {
++  $('status').textContent = text;
++  $('status').className = 'status' + (kind ? ' ' + kind : '');
++}
++function buttons() {
++  const busy = pending !== null;
++  $('run').disabled = busy;
++  $('check').disabled = busy || !args.caseCount;
++  $('check').title = args.caseCount ? '' : 'This question has no sample cases.';
++  $('submit').disabled = busy || !args.submitOpen;
++  $('submit').title = args.submitOpen ? '' : (args.submitHint || '');
++}
++
++function editorRender() {
++  if (!initialised) {
++    initialised = true;
++    $('app').hidden = false;
++    ace.config.set('basePath', 'ace/');
++    editor = ace.edit('editor', {
++      mode: 'ace/mode/java', tabSize: 4, useSoftTabs: true, showPrintMargin: false,
++      behavioursEnabled: false, wrapBehavioursEnabled: false, enableAutoIndent: true, fontSize: 14,
++    });
++    editor.setTheme(document.documentElement.dataset.theme === 'dark' ? 'ace/theme/tomorrow_night' : 'ace/theme/chrome');
++    $('editor').style.height = `${args.height || 420}px`;
++    editor.resize();
++    try { work = JSON.parse(safeGet(args.workKey)); } catch { work = null; }
++    if (!work || !Array.isArray(work.events)) work = { t0: Date.now(), events: [], code: '', stdin: args.defaultStdin || '' };
++    recorder = new Recorder(editor, work, {
++      onChange: save,
++      onBlocked: kind => status(kind === 'paste'
++        ? 'Pasting from outside the editor is not allowed. Type the code. (The attempt is recorded.)'
++        : 'Dropping text into the editor is not allowed.', 'bad'),
++    });
++    if (work.code) recorder.load(work.code); else save();
++    $('stdin').value = work.stdin || '';
++    $('stdin').addEventListener('input', save);
++    for (const action of ['run', 'check', 'submit']) $(action).addEventListener('click', () => request(action));
++    seenResult = args.result ? args.result.nonce : null;      // results from before a reload are not re-recorded
++    stats();
++    editor.focus();
++  }
++  const r = args.result;
++  if (r && r.nonce !== seenResult) {
++    seenResult = r.nonce;
++    if (r.event) recorder.event(...r.event);                   // ['x', outcome, ms] or ['c', passed, total]
++    saveNow();
++    stats();
++    if (pending === r.nonce) { pending = null; clearTimeout(pendingTimer); }
++    status(r.message || '', r.kind || '');
++  }
++  buttons();
++}
++
++function request(action) {
++  if (pending !== null) return;
++  const code = editor.getValue();
++  if (action === 'submit') {
++    if (code.trim().length < 20) { status('Type your program first.', 'warn'); return; }
++    if (!confirm(args.confirmText || 'Submit this program?')) return;
++    recorder.event('s', fnv(code));
++  }
++  saveNow();
++  pending = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
++  status(action === 'check' ? 'Checking on the server...' : action === 'submit' ? 'Making the encrypted package...' : 'Compiling and running on the server...');
++  buttons();
++  clearTimeout(pendingTimer);
++  pendingTimer = setTimeout(() => { pending = null; status('No answer from the server. Press the button again.', 'warn'); buttons(); }, 90000);
++  setValue({
++    nonce: pending, action, code, stdin: $('stdin').value, fileName: fileName(code),
++    t0: new Date(work.t0).toISOString(), t0ms: work.t0, events: work.events,
++    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, userAgent: navigator.userAgent,
++  });
++}
+diff --git a/apps/student/editor/index.html b/apps/student/editor/index.html
+new file mode 100644
+index 0000000..50bc0e9
+--- /dev/null
++++ b/apps/student/editor/index.html
+@@ -0,0 +1,25 @@
++<!doctype html>
++<html lang="en">
++<head>
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>Java Lab editor</title>
++<link rel="stylesheet" href="editor.css">
++<script src="ace/ace.js"></script>
++</head>
++<body>
++<div id="app" hidden>
++  <div class="bar"><span id="file" class="file">Main.java</span><span id="stats" class="stats"></span></div>
++  <div id="editor" class="editor"></div>
++  <label for="stdin" class="label">Keyboard input for Run (type what the program reads, one value per line)</label>
++  <textarea id="stdin" rows="4" spellcheck="false"></textarea>
++  <div class="buttons">
++    <button id="run" type="button">Run</button>
++    <button id="check" type="button">Check with sample cases</button>
++    <button id="submit" type="button" class="primary">Submit</button>
++    <span id="status" class="status" role="status"></span>
++  </div>
++</div>
++<script type="module" src="editor.js"></script>
++</body>
++</html>
+diff --git a/apps/student/requirements.txt b/apps/student/requirements.txt
+new file mode 100644
+index 0000000..ddf6f2e
+--- /dev/null
++++ b/apps/student/requirements.txt
+@@ -0,0 +1,2 @@
++streamlit==1.66.1
++cryptography==46.0.3
+diff --git a/apps/teacher/.streamlit/config.toml b/apps/teacher/.streamlit/config.toml
+new file mode 100644
+index 0000000..b05bb46
+--- /dev/null
++++ b/apps/teacher/.streamlit/config.toml
+@@ -0,0 +1,11 @@
++[server]
++headless = true
++
++[browser]
++gatherUsageStats = false
++
++[client]
++toolbarMode = "minimal"
++
++[theme]
++primaryColor = "#0b6e8a"
+diff --git a/apps/teacher/app.py b/apps/teacher/app.py
+new file mode 100644
+index 0000000..e94fec3
+--- /dev/null
++++ b/apps/teacher/app.py
+@@ -0,0 +1,468 @@
++"""Java Lab, teacher app (Streamlit Community Cloud, private app).
++
++Everything a lab session needs from one page: open and close assessments, watch submissions
++arrive, start the marking in the private gradebook, read the marks and similarity lists, replay
++how each program was typed, add new questions with hidden tests, and manage the key pair.
++
++The app never runs student code. It acts on GitHub with a fine-grained token (secrets):
++    TEACHER_PASSWORD = "..."                     required
++    GITHUB_TOKEN     = "github_pat_..."          required (see apps/labcore/github.py for permissions)
++    LAB_REPO         = "parthiban-loganathan/Java"            optional
++    GRADEBOOK_REPO   = "parthiban-loganathan/java-lab-gradebook"  optional
++
++    streamlit run apps/teacher/app.py          (from the repository root)
++"""
++import csv
++import datetime as dt
++import hashlib
++import hmac
++import io
++import json
++import os
++import re
++import sys
++import time
++
++import streamlit as st
++
++APP = os.path.dirname(os.path.abspath(__file__))
++sys.path.insert(0, os.path.dirname(APP))
++from labcore import ROOT, labdata, sandbox  # noqa: E402
++from labcore.github import GitHub, GitHubError  # noqa: E402
++import activity  # noqa: E402
++import control as ctl  # noqa: E402
++import labcrypto  # noqa: E402
++
++st.set_page_config(page_title="Java Lab - Teacher", page_icon=":material/school:", layout="wide")
++IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
++QID = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
++
++
++def secret(name, default=None):
++    try:
++        v = st.secrets.get(name, default)
++    except Exception:  # noqa: BLE001  no secrets file at all (local runs): use the environment
++        v = default
++    return os.environ.get(name, v) if v in (None, "") else v
++
++
++def ist(text):
++    if not text:
++        return ""
++    return ctl.parse_time(text).astimezone(IST).strftime("%d %b %H:%M:%S")
++
++
++# ---------------------------------------------------------------------- sign-in
++password = secret("TEACHER_PASSWORD")
++if not password:
++    st.error("Set TEACHER_PASSWORD (and GITHUB_TOKEN) in this app's secrets: Manage app, Settings, Secrets. "
++             "See docs/11-streamlit-apps.md.")
++    st.stop()
++ss = st.session_state
++ss.setdefault("auth", False)
++ss.setdefault("fails", 0)
++if not ss.auth:
++    st.title("Java Lab - Teacher")
++    with st.form("login"):
++        pw = st.text_input("Password", type="password")
++        if st.form_submit_button("Sign in", type="primary"):
++            if ss.fails >= 5:
++                time.sleep(5)
++            if hmac.compare_digest(hashlib.sha256(pw.encode()).digest(), hashlib.sha256(str(password).encode()).digest()):
++                ss.auth = True
++                ss.fails = 0
++                st.rerun()
++            ss.fails += 1
++            st.error("Wrong password.")
++    st.stop()
++
++TOKEN = secret("GITHUB_TOKEN")
++LAB = secret("LAB_REPO", labdata.REPO)
++GRADEBOOK = secret("GRADEBOOK_REPO", LAB.split("/")[0] + "/java-lab-gradebook")
++if not TOKEN:
++    st.error("Set GITHUB_TOKEN in this app's secrets (docs/11-streamlit-apps.md).")
++    st.stop()
++gh = GitHub(TOKEN)
++
++
++@st.cache_resource(show_spinner=False)
++def toolchain():
++    return sandbox.Toolchain(print)
++
++
++@st.cache_data(ttl=10, show_spinner=False)
++def text_of(repo, path):
++    return gh.file_text(repo, path)
++
++
++@st.cache_data(ttl=30, show_spinner=False)
++def tree_of(repo):
++    return gh.tree(repo)
++
++
++@st.cache_data(ttl=15, show_spinner=False)
++def runs_of(repo, workflow):
++    return gh.runs(repo, workflow, 6)
++
++
++@st.cache_data(ttl=20, show_spinner=False)
++def submissions():
++    return gh.issues(LAB, "lab-submission", limit=2000)
++
++
++def refresh():
++    st.cache_data.clear()
++
++
++def control_data():
++    try:
++        t = text_of(LAB, "lab/control.json")
++    except GitHubError as e:
++        st.error("Cannot read lab/control.json of %s: %s. Check GITHUB_TOKEN and LAB_REPO in the secrets." % (LAB, e))
++        return ctl.empty()
++    try:
++        return json.loads(t) if t else ctl.empty()
++    except ValueError:
++        return ctl.empty()
++
++
++def show_runs(repo, workflow, title):
++    try:
++        runs = runs_of(repo, workflow)
++    except GitHubError as e:
++        st.warning("%s: %s" % (title, e))
++        return
++    if not runs:
++        st.caption("No runs of %s yet." % title)
++        return
++    rows = [{"started (IST)": ist(r["created_at"]), "status": r["status"], "result": r.get("conclusion") or "",
++             "by": (r.get("actor") or {}).get("login", ""), "link": r["html_url"]} for r in runs]
++    st.dataframe(rows, hide_index=True, column_config={"link": st.column_config.LinkColumn("link", display_text="open")})
++
++
++def question_ids():
++    ids = list(labdata.course_ids())
++    try:
++        paths = tree_of(LAB)
++        ids += sorted({p.split("/")[2] for p in paths if p.startswith("lab/questions/") and p.endswith("/README.md") and p.count("/") == 3})
++    except GitHubError:
++        pass
++    return ids
++
++
++# ---------------------------------------------------------------------- page
++st.title("Java Lab - Teacher")
++c1, c2 = st.columns([4, 1])
++c1.caption("Lab repository `%s` (public) and gradebook `%s` (private)." % (LAB, GRADEBOOK))
++if c2.button("Refresh", icon=":material/refresh:"):
++    refresh()
++    st.rerun()
++
++tab_s, tab_sub, tab_m, tab_r, tab_q, tab_k = st.tabs(["Sessions", "Submissions", "Marks", "Replay", "Questions", "Keys"])
++
++# ---------------------------------------------------------------------- sessions
++with tab_s:
++    data = control_data()
++    now = labdata.utcnow()
++    rows = []
++    for s in data.get("sessions", []):
++        w = s.get("windows", [])
++        open_ = any(ctl.in_window(x, now) for x in w)
++        last = w[-1] if w else {}
++        rows.append({"session": s["id"], "state": "OPEN" if open_ else "closed", "title": s.get("title", ""),
++                     "questions": " ".join(s.get("questions", [])), "windows": len(w),
++                     "last opened (IST)": ist(last.get("opened_at")),
++                     "closes (IST)": ist(last.get("closed_at") or last.get("closes_at"))})
++    if rows:
++        st.dataframe(rows, hide_index=True)
++    else:
++        st.info("No sessions yet.")
++    a, b = st.columns(2)
++    with a:
++        st.subheader("Open")
++        with st.form("open"):
++            sid = st.text_input("Session", placeholder="W05 or W05-A", help="1-32 letters, digits, - or _")
++            qs = st.multiselect("Questions", question_ids(), help="Empty = keep the session's questions (when reopening).")
++            minutes = st.number_input("Close automatically after (minutes, 0 = when you close)", 0, 600, 0, step=5)
++            title = st.text_input("Title shown to students (optional)")
++            if st.form_submit_button("Open session", type="primary"):
++                if not QID.match(sid or ""):
++                    st.error("Session name: 1-32 letters, digits, - or _.")
++                elif not qs and not ctl.find(data, sid):
++                    st.error("A new session needs its questions.")
++                else:
++                    try:
++                        gh.dispatch(LAB, "lab-control.yml", {"action": "open", "session": sid, "questions": " ".join(qs),
++                                                             "minutes": str(int(minutes)), "title": title})
++                        st.success("Requested. The workflow records the time it starts; status shows below within a minute.")
++                        refresh()
++                    except GitHubError as e:
++                        st.error(str(e))
++    with b:
++        st.subheader("Close")
++        open_ids = [r["session"] for r in rows if r["state"] == "OPEN"]
++        with st.form("close"):
++            sid = st.selectbox("Session", open_ids + ["(every open session)"])
++            if st.form_submit_button("Close", type="primary", disabled=not open_ids):
++                try:
++                    gh.dispatch(LAB, "lab-control.yml", {"action": "close", "session": "" if sid.startswith("(") else sid,
++                                                         "questions": "", "minutes": "0", "title": ""})
++                    st.success("Requested. Issues GitHub creates after the workflow starts are rejected.")
++                    refresh()
++                except GitHubError as e:
++                    st.error(str(e))
++    st.subheader("Lab session control runs")
++    show_runs(LAB, "lab-control.yml", "Lab session control")
++
++# ---------------------------------------------------------------------- submissions
++with tab_sub:
++    data = control_data()
++    sids = [s["id"] for s in data.get("sessions", [])]
++    if not sids:
++        st.info("No sessions yet.")
++    else:
++        sid = st.selectbox("Session", sids[::-1], key="sub-session")
++        try:
++            issues = [i for i in submissions() if i["title"].startswith("[Lab] %s " % sid)]
++        except GitHubError as e:
++            issues = []
++            st.error(str(e))
++        rows = []
++        for i in issues:
++            labels = {x["name"] for x in i.get("labels", [])}
++            state = ("ignored" if "lab-ignore" in labels else "accepted" if "lab-accepted" in labels else
++                     "late, accepted" if "lab-accept-late" in labels else "rejected" if "lab-rejected" in labels else "waiting")
++            rows.append({"issue": i["number"], "github": (i.get("user") or {}).get("login", ""),
++                         "question": i["title"].split()[-1], "created (IST)": ist(i["created_at"]), "state": state,
++                         "link": i["html_url"]})
++        accepted = [r for r in rows if r["state"] in ("accepted", "late, accepted")]
++        m1, m2, m3, m4 = st.columns(4)
++        m1.metric("Issues", len(rows))
++        m2.metric("Accepted", len(accepted))
++        m3.metric("Rejected", sum(r["state"] == "rejected" for r in rows))
++        m4.metric("Students (GitHub accounts)", len({r["github"] for r in accepted}))
++        per_q = {}
++        for r in accepted:
++            per_q.setdefault(r["question"], set()).add(r["github"])
++        if per_q:
++            st.caption("Accounts with an accepted submission, per question: " +
++                       ", ".join("%s %d" % (k, len(v)) for k, v in sorted(per_q.items())))
++        st.dataframe(rows, hide_index=True, column_config={"link": st.column_config.LinkColumn("link", display_text="open")})
++        st.caption("Names and register numbers are inside the encrypted packages; they appear in Marks after collection.")
++
++# ---------------------------------------------------------------------- marks
++with tab_m:
++    data = control_data()
++    sids = [s["id"] for s in data.get("sessions", [])]
++    sid = st.selectbox("Session", sids[::-1], key="marks-session") if sids else None
++    a, b = st.columns([1, 3])
++    if a.button("Collect and mark now", type="primary", disabled=not sid):
++        try:
++            gh.dispatch(GRADEBOOK, "collect.yml", {"session": sid})
++            st.success("Started in the gradebook (3-20 minutes). Press Refresh to see the result.")
++            refresh()
++        except GitHubError as e:
++            st.error("%s (does %s exist, with .github/workflows/collect.yml?)" % (e, GRADEBOOK))
++    with b:
++        show_runs(GRADEBOOK, "collect.yml", "Collect and mark")
++    if sid:
++        try:
++            readme = text_of(GRADEBOOK, "results/%s/README.md" % sid)
++        except GitHubError as e:
++            readme = None
++            st.error(str(e))
++        if readme is None:
++            st.info("No results for %s yet." % sid)
++        else:
++            for name, label in (("marks-wide.csv", "Marks per student"), ("marks.csv", "Every question, tests and typing flags"),
++                                ("similarity.csv", "Similar programs (80 %+ shared 5-token sequences)")):
++                try:
++                    text = text_of(GRADEBOOK, "results/%s/%s" % (sid, name))
++                except GitHubError:
++                    text = None
++                if text:
++                    st.subheader(label)
++                    rows = list(csv.DictReader(io.StringIO(text)))
++                    st.dataframe(rows, hide_index=True) if rows else st.caption("(none)")
++                    st.download_button("Download %s" % name, text, file_name="%s-%s" % (sid, name), mime="text/csv",
++                                       key="dl-%s-%s" % (sid, name))
++            with st.expander("Full report (README.md of the gradebook)"):
++                st.markdown(readme)
++
++# ---------------------------------------------------------------------- replay
++with tab_r:
++    try:
++        paths = [p for p in tree_of(GRADEBOOK) if p.startswith("results/") and p.endswith("/submission.json")]
++    except GitHubError as e:
++        paths = []
++        st.error(str(e))
++    if not paths:
++        st.info("No collected submissions yet (Marks, Collect and mark now).")
++    else:
++        parts = [p.split("/") for p in paths]          # results/S/Q/REGNO/ISSUE/submission.json
++        parts = [x for x in parts if len(x) == 6]
++        k1, k2, k3, k4 = st.columns(4)
++        s_ = k1.selectbox("Session", sorted({x[1] for x in parts}, reverse=True), key="rp-s")
++        q_ = k2.selectbox("Question", sorted({x[2] for x in parts if x[1] == s_}), key="rp-q")
++        r_ = k3.selectbox("Register number", sorted({x[3] for x in parts if x[1] == s_ and x[2] == q_}), key="rp-r")
++        i_ = k4.selectbox("Issue (attempt)", sorted({x[4] for x in parts if x[1] == s_ and x[2] == q_ and x[3] == r_},
++                                                    key=lambda v: int(v) if v.isdigit() else 0, reverse=True), key="rp-i")
++        base = "results/%s/%s/%s/%s/" % (s_, q_, r_, i_)
++        try:
++            raw = text_of(GRADEBOOK, base + "submission.json")
++        except GitHubError as e:
++            raw = None
++            st.error(str(e))
++        try:
++            sub = json.loads(raw or "{}")
++        except ValueError:
++            sub = {}
++        data_ = sub.get("data", sub)
++        files = data_.get("files") or {}
++        code = next(iter(files.values()), "")
++        act = data_.get("activity") or {}
++        events = [e for e in (act.get("events") or []) if isinstance(e, list) and len(e) >= 2]
++        summ = activity.summarise(events, code)
++        fl = activity.flags(summ, bool(act.get("trimmed")))
++        st.write("**%s** %s, issue #%s" % (data_.get("regno", r_), data_.get("name", ""), i_))
++        m = st.columns(5)
++        m[0].metric("Typed chars", summ["typedChars"])
++        m[1].metric("Final chars", summ["finalChars"])
++        m[2].metric("Active min", "%.1f" % (summ["activeMs"] / 60000))
++        m[3].metric("Runs", summ["runs"])
++        m[4].metric("Pastes blocked", summ["pasteBlocked"])
++        if fl:
++            st.warning("Flags: " + "; ".join(fl))
++        if "server" in data_:
++            st.caption("Submitted from the Streamlit student app; %d server-side actions logged." % len(data_["server"].get("log", [])))
++        end = max([e[1] for e in events] + [0])
++        t = st.slider("Time since start (seconds)", 0, max(1, int(end // 1000) + 1), max(1, int(end // 1000) + 1), key="rp-t")
++        st.code(activity.replay(events, t * 1000), language="java", line_numbers=True)
++        with st.expander("Events up to this time"):
++            names = {"i": "typed", "r": "deleted", "p": "PASTE BLOCKED", "P": "internal paste", "B": "LARGE INSERT",
++                     "d": "DROP BLOCKED", "a": "left page", "f": "back", "L": "reloaded", "x": "run", "c": "check", "s": "submit"}
++            st.dataframe([{"time": "%d:%02d" % (e[1] // 60000, e[1] // 1000 % 60), "event": names.get(e[0], e[0]),
++                           "detail": json.dumps(e[2:])[:120]} for e in events if e[1] <= t * 1000][-400:], hide_index=True)
++        try:
++            res = text_of(GRADEBOOK, base + "result.md")
++        except GitHubError:
++            res = None
++        if res:
++            with st.expander("Marking result (hidden cases)"):
++                st.markdown(res)
++
++# ---------------------------------------------------------------------- questions
++with tab_q:
++    st.write("A new question: the statement and sample cases go to the public lab repository (students see them), the "
++             "solution and all marking cases to the private gradebook. Expected outputs are made by running your solution "
++             "on Java 21 here, so Check, the website and the marking agree.")
++    with st.form("question"):
++        qid = st.text_input("Question id", placeholder="Q04")
++        statement = st.text_area("Statement (Markdown, first line '# Q04 Title')", height=220)
++        solution = st.text_area("Reference solution (Main.java)", height=260)
++        samples = st.text_area("Sample inputs shown to students: one case per block, blocks separated by a line ---", height=140)
++        hidden = st.text_area("Hidden marking inputs (same format; boundaries, invalid and large values)", height=140)
++        preview = st.form_submit_button("Run the solution on every case")
++    split = lambda t: [b.strip("\n") + "\n" for b in re.split(r"(?m)^---\s*$", t or "") if b.strip()]
++    if preview:
++        ss.qdraft = None
++        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,31}", qid or ""):
++            st.error("Question id: letters and digits, for example Q04.")
++        elif labdata.question(qid) and not qid.startswith("Q"):
++            st.error("%s is a course program id." % qid)
++        elif not statement.strip().startswith("# "):
++            st.error("The statement must start with '# %s Title'." % qid)
++        elif not split(samples):
++            st.error("Give at least one sample input.")
++        else:
++            with st.spinner("Preparing Java 21 and running the solution..."):
++                tc = toolchain()
++                c = tc.compile({sandbox.file_name_for(solution): solution})
++                try:
++                    if not c.ok:
++                        st.error("The solution does not compile.")
++                        st.code(c.text(), language=None)
++                    else:
++                        outs = []
++                        for inp in split(samples) + split(hidden):
++                            r = tc.run(c, inp)
++                            outs.append((inp, r))
++                        bad = [r for _, r in outs if r.timed_out or r.exit_code != 0]
++                        if bad:
++                            st.warning("%d case(s) ended with an error or the time limit: check them." % len(bad))
++                        ss.qdraft = {"id": qid, "statement": statement, "solution": solution,
++                                     "samples": [(i, r.stdout) for i, r in outs[:len(split(samples))]],
++                                     "hidden": [(i, r.stdout) for i, r in outs[len(split(samples)):]]}
++                finally:
++                    c.cleanup()
++    d = ss.get("qdraft")
++    if d:
++        st.subheader("Preview of %s" % d["id"])
++        for kind in ("samples", "hidden"):
++            for n, (i, o) in enumerate(d[kind], 1):
++                with st.expander("%s %d" % (kind[:-1].capitalize(), n)):
++                    x, y = st.columns(2)
++                    x.code(i, language=None)
++                    y.code(o or "(no output)", language=None)
++        public = {"lab/questions/%s/README.md" % d["id"]: d["statement"].rstrip() + "\n"}
++        for n, (i, o) in enumerate(d["samples"], 1):
++            suf = "" if n == 1 else "-%d" % n
++            public["lab/questions/%s/input%s.txt" % (d["id"], suf)] = i
++            public["lab/questions/%s/expected%s.txt" % (d["id"], suf)] = o
++        private = {"solutions/%s/Main.java" % d["id"]: d["solution"].rstrip() + "\n"}
++        for n, (i, o) in enumerate(d["samples"] + d["hidden"], 1):
++            private["tests/%s/input-%d.txt" % (d["id"], n)] = i
++            private["tests/%s/expected-%d.txt" % (d["id"], n)] = o
++        x, y = st.columns(2)
++        if x.button("1. Save solution and marking cases in the gradebook", type="primary"):
++            try:
++                gh.commit_files(GRADEBOOK, private, "Question %s: solution and marking cases" % d["id"])
++                st.success("Saved in %s (tests/%s, solutions/%s)." % (GRADEBOOK, d["id"], d["id"]))
++            except GitHubError as e:
++                st.error(str(e))
++        if y.button("2. Publish statement and samples to students"):
++            try:
++                gh.commit_files(LAB, public, "Question %s: statement and sample cases" % d["id"])
++                st.success("Published in lab/questions/%s. Students see it as soon as a session includes it." % d["id"])
++                refresh()
++            except GitHubError as e:
++                st.error(str(e))
++        st.caption("Publish shortly before the lab if the question should stay unseen until then; the public repository can be read by anyone.")
++
++# ---------------------------------------------------------------------- keys
++with tab_k:
++    try:
++        pem = text_of(LAB, "lab/teacher-public-key.pem")
++    except GitHubError as e:
++        pem = None
++        st.error(str(e))
++    if pem and "BEGIN PUBLIC KEY" in pem:
++        st.success("Students' submissions are encrypted for key **%s** (lab/teacher-public-key.pem)." % labcrypto.key_id(pem))
++    else:
++        st.warning("No public key is published yet: students cannot submit. Create one below.")
++    st.write("A new key pair replaces the old one: packages made with the old key are rejected afterwards, and the "
++             "gradebook needs the new private key. Do this before the course starts, not during a lab.")
++    if st.button("Create a new key pair"):
++        from cryptography.hazmat.primitives import serialization
++        from cryptography.hazmat.primitives.asymmetric import rsa
++        key = rsa.generate_private_key(public_exponent=65537, key_size=4096)
++        ss.newkey = {
++            "pub": key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode(),
++            "priv": key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
++                                      serialization.NoEncryption()).decode()}
++    nk = ss.get("newkey")
++    if nk:
++        st.info("New key id **%s**. It exists only in this browser tab until you download it." % labcrypto.key_id(nk["pub"]))
++        st.download_button("1. Download lab-private-key.pem (keep it safe; never commit it)", nk["priv"],
++                           file_name="lab-private-key.pem", mime="application/x-pem-file")
++        st.markdown("2. Gradebook secret: [Settings, Secrets and variables, Actions](https://github.com/%s/settings/secrets/actions), "
++                    "secret `LAB_PRIVATE_KEY`, value = the whole content of the downloaded file." % GRADEBOOK)
++        done = st.checkbox("I downloaded the private key and saved it as the gradebook secret LAB_PRIVATE_KEY")
++        if st.button("3. Publish the public key", type="primary", disabled=not done):
++            try:
++                gh.commit_files(LAB, {"lab/teacher-public-key.pem": nk["pub"]}, "Lab: teacher public key %s" % labcrypto.key_id(nk["pub"]))
++                st.success("Published. Students reload the Lab page or app.")
++                ss.newkey = None
++                refresh()
++            except GitHubError as e:
++                st.error(str(e))
+diff --git a/apps/teacher/requirements.txt b/apps/teacher/requirements.txt
+new file mode 100644
+index 0000000..ddf6f2e
+--- /dev/null
++++ b/apps/teacher/requirements.txt
+@@ -0,0 +1,2 @@
++streamlit==1.66.1
++cryptography==46.0.3
+diff --git a/apps/tests/test_apps.py b/apps/tests/test_apps.py
+new file mode 100644
+index 0000000..bbbdf45
+--- /dev/null
++++ b/apps/tests/test_apps.py
+@@ -0,0 +1,277 @@
++"""Both Streamlit apps run headless (streamlit.testing AppTest) against a fake GitHub API.
++
++    python3 -m unittest discover -s apps/tests -v
++Student app: identity, practice mode, questions and their sample cases.
++Teacher app: password gate, sessions from control.json, open/close dispatch the real workflow with
++the right inputs, submissions counted by label, marks and similarity read from the gradebook,
++replay of a decrypted submission, a new question run on Java 21 and committed (solution and
++hidden cases to the gradebook, statement and samples to the lab repository), key pair publication.
++"""
++import json
++import os
++import sys
++import threading
++import unittest
++import urllib.parse
++from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++APPS = os.path.dirname(HERE)
++ROOT = os.path.dirname(APPS)
++LAB, BOOK = "owner/Java", "owner/java-lab-gradebook"
++
++
++class Fake:
++    files = {}
++    dispatches = []
++    commits = []
++    pending = {}
++
++
++def reset():
++    sub = {"meta": {"issue": 7}, "regno": "24BCL0001", "name": "Anitha R", "session": "W05", "question": "Q01",
++           "files": {"Main.java": "class Main {}"},
++           "activity": {"format": 1, "events": [["i", 1000, 0, 0, "class Main {"], ["i", 4000, 0, 12, "}"],
++                                                  ["p", 5000, 30, "pasted text"], ["x", 6000, "ok", 120]], "trimmed": False}}
++    Fake.files = {
++        LAB: {"lab/control.json": json.dumps({"format": 1, "settings": {}, "sessions": [
++            {"id": "W04", "title": "", "questions": ["L07"],
++             "windows": [{"opened_at": "2026-10-26T09:00:00Z", "closes_at": None, "closed_at": "2026-10-26T11:00:00Z"}]},
++            {"id": "W05", "title": "Week 5", "questions": ["Q01", "E05a"],
++             "windows": [{"opened_at": "2026-11-02T09:00:00Z", "closes_at": None, "closed_at": None}]}]}),
++              "lab/questions/Q01/README.md": "# Q01 Peak runoff\n"},
++        BOOK: {"results/W05/README.md": "# Results W05\n",
++               "results/W05/marks-wide.csv": "regno,name,Q01,average_percent\n24BCL0001,Anitha R,100,100\n",
++               "results/W05/marks.csv": "regno,name,question,tests_passed\n24BCL0001,Anitha R,Q01,6\n",
++               "results/W05/similarity.csv": "question,regno_a,regno_b,similarity\n",
++               "results/W05/Q01/24BCL0001/7/submission.json": json.dumps(sub),
++               "results/W05/Q01/24BCL0001/7/result.md": "6/6 passed\n"},
++    }
++    Fake.dispatches, Fake.commits, Fake.pending = [], [], {}
++
++
++ISSUES = [{"number": 7, "title": "[Lab] W05 Q01", "user": {"login": "anitha-r"}, "created_at": "2026-11-02T09:30:00Z",
++           "html_url": "https://github.com/owner/Java/issues/7", "labels": [{"name": "lab-submission"}, {"name": "lab-accepted"}]},
++          {"number": 8, "title": "[Lab] W05 Q01", "user": {"login": "bharath"}, "created_at": "2026-11-02T12:30:00Z",
++           "html_url": "https://github.com/owner/Java/issues/8", "labels": [{"name": "lab-submission"}, {"name": "lab-rejected"}]},
++          {"number": 9, "title": "[Lab] W04 L07", "user": {"login": "anitha-r"}, "created_at": "2026-10-26T09:30:00Z",
++           "html_url": "https://github.com/owner/Java/issues/9", "labels": [{"name": "lab-submission"}, {"name": "lab-accepted"}]}]
++
++
++class Handler(BaseHTTPRequestHandler):
++    def log_message(self, *a):
++        pass
++
++    def reply(self, code, obj=None, raw=None):
++        body = raw if raw is not None else (json.dumps(obj).encode() if obj is not None else b"")
++        self.send_response(code)
++        self.send_header("Content-Length", str(len(body)))
++        self.end_headers()
++        self.wfile.write(body)
++
++    def route(self):
++        u = urllib.parse.urlparse(self.path)
++        p = u.path.split("/")              # ['', 'repos', owner, repo, ...]
++        if self.headers.get("Authorization") != "Bearer test-token":
++            return self.reply(401, {"message": "Bad credentials"})
++        repo = "/".join(p[2:4])
++        rest = p[4:]
++        return repo, rest, urllib.parse.parse_qs(u.query)
++
++    def do_GET(self):
++        r = self.route()
++        if r is None:
++            return
++        repo, rest, q = r
++        files = Fake.files.get(repo)
++        if files is None:
++            return self.reply(404, {"message": "Not Found"})
++        if rest[0] == "contents":
++            path = urllib.parse.unquote("/".join(rest[1:]))
++            return self.reply(200, raw=files[path].encode()) if path in files else self.reply(404, {"message": "Not Found"})
++        if rest[:3] == ["git", "ref", "heads"]:
++            return self.reply(200, {"object": {"sha": "c%d" % len(Fake.commits)}})
++        if rest[:2] == ["git", "trees"]:
++            return self.reply(200, {"tree": [{"path": k, "type": "blob"} for k in sorted(files)]})
++        if rest[:2] == ["git", "commits"]:
++            return self.reply(200, {"tree": {"sha": "t-" + rest[2]}})
++        if rest[:2] == ["actions", "workflows"]:
++            runs = [{"created_at": "2026-11-02T09:00:05Z", "status": "completed", "conclusion": "success",
++                     "actor": {"login": "teacher"}, "html_url": "https://github.com/%s/actions/runs/1" % repo}]
++            return self.reply(200, {"workflow_runs": runs})
++        if rest[0] == "issues":
++            return self.reply(200, ISSUES if q.get("page", ["1"])[0] == "1" else [])
++        return self.reply(404, {"message": "Not Found"})
++
++    def body(self):
++        n = int(self.headers.get("Content-Length") or 0)
++        return json.loads(self.rfile.read(n) or b"{}")
++
++    def do_POST(self):
++        r = self.route()
++        if r is None:
++            return
++        repo, rest, _ = r
++        b = self.body()
++        if rest[:2] == ["actions", "workflows"] and rest[3] == "dispatches":
++            Fake.dispatches.append((repo, rest[2], b))
++            return self.reply(204)
++        if rest[:2] == ["git", "trees"]:
++            Fake.pending[repo] = {e["path"]: e["content"] for e in b["tree"]}
++            return self.reply(201, {"sha": "tree-new"})
++        if rest[:2] == ["git", "commits"]:
++            return self.reply(201, {"sha": "commit-new"})
++        return self.reply(404, {"message": "Not Found"})
++
++    def do_PATCH(self):
++        r = self.route()
++        if r is None:
++            return
++        repo, rest, _ = r
++        self.body()
++        if rest[:3] == ["git", "refs", "heads"]:
++            Fake.files[repo].update(Fake.pending.pop(repo, {}))
++            Fake.commits.append(repo)
++            return self.reply(200, {"object": {"sha": "commit-new"}})
++        return self.reply(404, {"message": "Not Found"})
++
++
++SERVER = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
++threading.Thread(target=SERVER.serve_forever, daemon=True).start()
++os.environ["LAB_GITHUB_API"] = "http://127.0.0.1:%d" % SERVER.server_port
++os.environ.setdefault("LAB_REPO", "invalid-owner-x/none")          # the student app reads nothing real
++
++from streamlit.testing.v1 import AppTest  # noqa: E402
++
++SECRETS = {"TEACHER_PASSWORD": "lab-pass", "GITHUB_TOKEN": "test-token", "LAB_REPO": LAB, "GRADEBOOK_REPO": BOOK}
++
++
++def teacher():
++    at = AppTest.from_file(os.path.join(APPS, "teacher", "app.py"), default_timeout=180)
++    for k, v in SECRETS.items():
++        at.secrets[k] = v
++    at.run()
++    at.text_input[0].set_value("lab-pass")
++    at.button[0].click()
++    at.run()
++    return at
++
++
++def by_label(widgets, label):
++    return next(w for w in widgets if w.label == label)
++
++
++class StudentApp(unittest.TestCase):
++    def test_practice(self):
++        at = AppTest.from_file(os.path.join(APPS, "student", "app.py"), default_timeout=180)
++        at.run()
++        self.assertFalse(at.exception, [e.value for e in at.exception])
++        self.assertIn("No assessment is open now", at.info[0].value)
++        by_label(at.text_input, "Register number").set_value("24bcl 0123")
++        by_label(at.text_input, "Full name").set_value("Anitha  R")
++        at.button[0].click()
++        at.run()
++        self.assertFalse(at.exception, [e.value for e in at.exception])
++        self.assertIn("24BCL0123", " ".join(c.value for c in at.caption))
++        q = by_label(at.selectbox, "Question")
++        self.assertIn("E16", q.options[-4] + " ".join(q.options))
++        q.set_value("E16")
++        at.run()
++        self.assertFalse(at.exception, [e.value for e in at.exception])
++        self.assertTrue(any("in-memory database" in w.value for w in at.warning))
++
++    def test_bad_regno(self):
++        at = AppTest.from_file(os.path.join(APPS, "student", "app.py"), default_timeout=180)
++        at.run()
++        by_label(at.text_input, "Register number").set_value("12345")
++        by_label(at.text_input, "Full name").set_value("Anitha R")
++        at.button[0].click()
++        at.run()
++        self.assertTrue(any("Register number must look like" in e.value for e in at.error))
++
++
++class TeacherApp(unittest.TestCase):
++    def setUp(self):
++        reset()
++
++    def test_password_gate(self):
++        at = AppTest.from_file(os.path.join(APPS, "teacher", "app.py"), default_timeout=60)
++        for k, v in SECRETS.items():
++            at.secrets[k] = v
++        at.run()
++        at.text_input[0].set_value("wrong")
++        at.button[0].click()
++        at.run()
++        self.assertTrue(any("Wrong password" in e.value for e in at.error))
++        self.assertEqual(len(at.tabs), 0)
++
++    def test_sessions_open_close(self):
++        at = teacher()
++        self.assertFalse(at.exception, [e.value for e in at.exception])
++        self.assertEqual(len(at.tabs), 6)
++        df = at.dataframe[0].value
++        self.assertEqual(list(df["session"]), ["W04", "W05"])
++        self.assertEqual(list(df["state"]), ["closed", "OPEN"])
++        by_label(at.text_input, "Session").set_value("W06")
++        by_label(at.multiselect, "Questions").set_value(["Q01", "E05a"])
++        by_label(at.number_input, "Close automatically after (minutes, 0 = when you close)").set_value(90)
++        next(b for b in at.button if b.label == "Open session").click()
++        at.run()
++        self.assertFalse(at.exception, [e.value for e in at.exception])
++        self.assertEqual(Fake.dispatches[-1], (LAB, "lab-control.yml", {"ref": "main", "inputs": {
++            "action": "open", "session": "W06", "questions": "Q01 E05a", "minutes": "90", "title": ""}}))
++        next(b for b in at.button if b.label == "Close").click()
++        at.run()
++        self.assertEqual(Fake.dispatches[-1][2]["inputs"]["action"], "close")
++        self.assertEqual(Fake.dispatches[-1][2]["inputs"]["session"], "W05")
++
++    def test_submissions_marks_replay(self):
++        at = teacher()
++        self.assertFalse(at.exception, [e.value for e in at.exception])
++        metrics = {m.label: m.value for m in at.metric}
++        self.assertEqual(metrics["Issues"], "2")
++        self.assertEqual(metrics["Accepted"], "1")
++        self.assertEqual(metrics["Rejected"], "1")
++        frames = [d.value for d in at.dataframe]
++        self.assertTrue(any("average_percent" in list(f.columns) for f in frames))
++        self.assertTrue(any("Flags" in w.value and "1 paste attempt(s) blocked" in w.value for w in at.warning))
++        self.assertTrue(any("class Main {}" in c.value for c in at.code))
++        next(b for b in at.button if b.label == "Collect and mark now").click()
++        at.run()
++        self.assertEqual(Fake.dispatches[-1], (BOOK, "collect.yml", {"ref": "main", "inputs": {"session": "W05"}}))
++
++    def test_new_question_and_key(self):
++        at = teacher()
++        by_label(at.text_input, "Question id").set_value("Q09")
++        by_label(at.text_area, "Statement (Markdown, first line '# Q04 Title')").set_value("# Q09 Square\n\nRead n, print n*n.\n")
++        by_label(at.text_area, "Reference solution (Main.java)").set_value(
++            "import java.util.*;\npublic class Main { public static void main(String[] a) { Scanner s = new Scanner(System.in);"
++            " long n = s.nextLong(); System.out.println(n * n); } }\n")
++        by_label(at.text_area, "Sample inputs shown to students: one case per block, blocks separated by a line ---").set_value("3\n---\n4\n")
++        by_label(at.text_area, "Hidden marking inputs (same format; boundaries, invalid and large values)").set_value("0\n---\n100000\n")
++        next(b for b in at.button if b.label == "Run the solution on every case").click()
++        at.run()
++        self.assertFalse(at.exception, [e.value for e in at.exception])
++        next(b for b in at.button if b.label.startswith("1. Save solution")).click()
++        at.run()
++        book = Fake.files[BOOK]
++        self.assertEqual(book["tests/Q09/expected-1.txt"], "9\n")
++        self.assertEqual(book["tests/Q09/expected-4.txt"], "10000000000\n")
++        self.assertIn("public class Main", book["solutions/Q09/Main.java"])
++        next(b for b in at.button if b.label.startswith("2. Publish statement")).click()
++        at.run()
++        lab = Fake.files[LAB]
++        self.assertEqual(lab["lab/questions/Q09/expected-2.txt"], "16\n")
++        self.assertNotIn("lab/questions/Q09/expected-3.txt", lab)          # hidden cases stay private
++        next(b for b in at.button if b.label == "Create a new key pair").click()
++        at.run()
++        at.checkbox[0].check()
++        at.run()
++        next(b for b in at.button if b.label == "3. Publish the public key").click()
++        at.run()
++        self.assertFalse(at.exception, [e.value for e in at.exception])
++        self.assertIn("BEGIN PUBLIC KEY", Fake.files[LAB]["lab/teacher-public-key.pem"])
++
++
++if __name__ == "__main__":
++    unittest.main(verbosity=2)
+diff --git a/apps/tests/test_sandbox.py b/apps/tests/test_sandbox.py
+new file mode 100644
+index 0000000..cbf1144
+--- /dev/null
++++ b/apps/tests/test_sandbox.py
+@@ -0,0 +1,223 @@
++"""Tests of the student app's Java sandbox (apps/labcore/sandbox.py) on the real JDK 21.
++
++    python3 -m unittest discover -s apps/tests -v
++1. Every course program (lessons, experiments incl. 16 on the H2 shim) compiles and reproduces each
++   expected output, exactly as tools/CourseCheck.java does on the plain JDK.
++2. Hostile programs are contained: files outside the run folder, environment, processes,
++   network, reflection, endless loops, output floods, thread and memory bombs.
++3. Compile errors come back with line numbers; the main-class rule matches the gradebook.
++"""
++import os
++import sys
++import threading
++import time
++import unittest
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++sys.path.insert(0, os.path.dirname(HERE))
++from labcore import ROOT, sandbox  # noqa: E402
++
++TC = None
++
++
++def toolchain():
++    global TC
++    if TC is None:
++        TC = sandbox.Toolchain(print)
++    return TC
++
++
++def course_programs():
++    out = []
++    for group in ("lessons", "experiments"):
++        base = os.path.join(ROOT, "course", group)
++        for d in sorted(os.listdir(base)):
++            if os.path.exists(os.path.join(base, d, "meta.properties")):
++                out.append(os.path.join(base, d))
++    return out
++
++
++def read(path):
++    with open(path, encoding="utf-8") as f:
++        return f.read()
++
++
++def cases(d):
++    n, res = 1, []
++    while True:
++        suf = "" if n == 1 else "-%d" % n
++        exp = os.path.join(d, "expected%s.txt" % suf)
++        if not os.path.exists(exp):
++            return res
++        inp = os.path.join(d, "input%s.txt" % suf)
++        res.append((read(inp) if os.path.exists(inp) else "", read(exp)))
++        n += 1
++
++
++def compile_text(code, name=None):
++    return toolchain().compile({name or sandbox.file_name_for(code): code})
++
++
++class CoursePrograms(unittest.TestCase):
++    def test_every_course_program(self):
++        tc = toolchain()
++        self.assertTrue(tc.jdbc_available, "H2 / jdbc:mysql shim not available")
++        failures, count = [], 0
++        total = sum(len(cases(d)) for d in course_programs())
++        for d in course_programs():
++            files = {f: read(os.path.join(d, f)) for f in sorted(os.listdir(d)) if f.endswith(".java")}
++            c = tc.compile(files)
++            try:
++                if not c.ok:
++                    failures.append("%s: compile\n%s" % (os.path.basename(d), c.text()))
++                    continue
++                for i, (inp, exp) in enumerate(cases(d), 1):
++                    r = tc.run(c, inp, setup_sql=sandbox.setup_sql_for(d))
++                    count += 1
++                    if sandbox.normalise(r.stdout) != sandbox.normalise(exp):
++                        failures.append("%s case %d:\n--- expected\n%s\n--- got\n%s\n--- stderr\n%s"
++                                        % (os.path.basename(d), i, exp, r.stdout, r.stderr))
++            finally:
++                c.cleanup()
++        print("course cases run:", count)
++        self.assertEqual(failures, [], "\n\n".join(failures))
++        self.assertEqual(count, total)
++
++
++HOSTILE = r'''
++import java.nio.file.*;
++public class Main {
++  static void t(String n, Runnable r){ try { r.run(); System.out.println(n+"=ALLOWED"); } catch (Throwable e) { System.out.println(n+"=blocked"); } }
++  static void io(java.util.concurrent.Callable<?> c) { try { c.call(); } catch (Exception e) { throw new RuntimeException(e); } }
++  public static void main(String[] a) {
++    t("own", () -> io(() -> Files.writeString(Path.of("ok.txt"), "x")));
++    t("etc", () -> io(() -> Files.readString(Path.of("/etc/hostname"))));
++    t("app", () -> io(() -> Files.list(Path.of(System.getProperty("user.dir"), "..")).count()));
++    t("environ", () -> io(() -> Files.readAllBytes(Path.of("/proc/self/environ"))));
++    t("parentenv", () -> io(() -> Files.readAllBytes(Path.of("/proc/1/environ"))));
++    t("getenv", () -> System.getenv().size());
++    t("exec", () -> io(() -> new ProcessBuilder("id").start()));
++    t("processes", () -> ProcessHandle.allProcesses().count());
++    t("socket", () -> io(() -> { new java.net.Socket("1.1.1.1", 80).close(); return null; }));
++    t("reflect", () -> io(() -> { var f = String.class.getDeclaredField("value"); f.setAccessible(true); return null; }));
++    t("loader", () -> new java.net.URLClassLoader(new java.net.URL[0]));
++    t("unsm", () -> System.setSecurityManager(null));
++  }
++}
++'''
++
++
++class Containment(unittest.TestCase):
++    def test_hostile_operations_blocked(self):
++        c = compile_text(HOSTILE)
++        try:
++            self.assertTrue(c.ok, c.text())
++            r = toolchain().run(c, "")
++        finally:
++            c.cleanup()
++        got = dict(l.split("=") for l in r.stdout.split() if "=" in l)
++        self.assertEqual(got.pop("own"), "ALLOWED", r.stdout + r.stderr)
++        self.assertTrue(got and all(v == "blocked" for v in got.values()), got)
++        self.assertEqual(r.files.get("ok.txt"), "x")
++        self.assertNotIn("Security Manager is deprecated", r.stderr)
++
++    def test_endless_loop_times_out(self):
++        c = compile_text("public class Main { public static void main(String[] a) { while (true) { } } }")
++        try:
++            t0 = time.monotonic()
++            r = toolchain().run(c, "", time_limit=3)
++        finally:
++            c.cleanup()
++        self.assertTrue(r.timed_out)
++        self.assertEqual(r.outcome, "timeout")
++        self.assertLess(time.monotonic() - t0, 8)
++
++    def test_output_flood_is_cut(self):
++        c = compile_text('public class Main { public static void main(String[] a) { while (true) System.out.println("x".repeat(100)); } }')
++        try:
++            r = toolchain().run(c, "")
++        finally:
++            c.cleanup()
++        self.assertTrue(r.output_limited)
++        self.assertLessEqual(len(r.stdout.encode()), sandbox.MAX_STDOUT)
++
++    def test_thread_and_memory_bombs_are_bounded(self):
++        code = ('public class Main { public static void main(String[] a) { int n = 0; try { while (true) { Thread t = new Thread(() -> {'
++                ' try { Thread.sleep(60000); } catch (Exception e) { } }); t.setDaemon(true); t.start(); n++; } } catch (Throwable e) {'
++                ' System.out.println("threads " + n); } java.util.List<byte[]> m = new java.util.ArrayList<>(); try { while (true) m.add(new byte[1 << 20]); }'
++                ' catch (Throwable e) { System.out.println("heap " + m.size()); } } }')
++        c = compile_text(code)
++        try:
++            r = toolchain().run(c, "")
++        finally:
++            c.cleanup()
++        threads = int(r.stdout.split("threads ")[1].split()[0])
++        heap = int(r.stdout.split("heap ")[1].split()[0])
++        self.assertLess(threads, 400)
++        self.assertLessEqual(heap, 128)
++
++    def test_big_file_is_refused(self):
++        code = ('import java.io.*; public class Main { public static void main(String[] a) throws Exception {'
++                ' try (FileOutputStream f = new FileOutputStream("big.bin")) { byte[] b = new byte[1 << 16];'
++                ' for (int i = 0; i < 64; i++) f.write(b); System.out.println("wrote"); } catch (IOException e) { System.out.println("refused"); } } }')
++        c = compile_text(code)
++        try:
++            r = toolchain().run(c, "")
++        finally:
++            c.cleanup()
++        self.assertNotIn("wrote", r.stdout)
++
++    def test_parallel_runs(self):
++        c = compile_text("import java.util.*; public class Main { public static void main(String[] a) { Scanner s = new Scanner(System.in);"
++                         " int x = s.nextInt(); System.out.println(x * x); } }")
++        results = {}
++
++        def go(i):
++            results[i] = toolchain().run(c, "%d\n" % i).stdout.strip()
++        try:
++            ts = [threading.Thread(target=go, args=(i,)) for i in range(12)]
++            for t in ts:
++                t.start()
++            for t in ts:
++                t.join()
++        finally:
++            c.cleanup()
++        self.assertEqual(results, {i: str(i * i) for i in range(12)})
++
++
++class Compiler(unittest.TestCase):
++    def test_compile_error_has_line(self):
++        c = compile_text("public class Main {\n  public static void main(String[] a) {\n    int x = 5\n  }\n}\n")
++        c.cleanup()
++        self.assertFalse(c.ok)
++        self.assertTrue(any(d.line == 3 and "';' expected" in d.message for d in c.diagnostics), c.text())
++        self.assertIn("Main.java:3: error: ';' expected", c.text())
++
++    def test_main_class_rule_matches_gradebook(self):
++        sys.path.insert(0, os.path.join(ROOT, "lab-system", "grader"))
++        import grade
++        import tempfile
++        samples = {"Main.java": "class A {} public class Main { public static void main(String[] a) {} }",
++                   "Rect.java": "public class Rect { public static void main(String[] a) {} }",
++                   "Calc.java": "class Calc { public static void main(String[] a) {} }"}
++        for name, text in samples.items():
++            d = tempfile.mkdtemp()
++            p = os.path.join(d, name)
++            with open(p, "w") as f:
++                f.write(text)
++            self.assertEqual(sandbox.main_class({name: text}), grade.main_class([p]), name)
++
++    def test_warm_compile_is_fast(self):
++        code = read(os.path.join(ROOT, "course", "experiments", "E04a-employee-bonus-inheritance", "Main.java"))
++        times = []
++        for _ in range(5):
++            c = compile_text(code)
++            c.cleanup()
++            self.assertTrue(c.ok)
++            times.append(c.ms)
++        print("warm compile ms:", times)
++        self.assertLess(min(times), 1500)
++
++
++if __name__ == "__main__":
++    unittest.main(verbosity=2)
+diff --git a/docs/00-start-here.md b/docs/00-start-here.md
+index fa89387..f6bcd90 100644
+--- a/docs/00-start-here.md
++++ b/docs/00-start-here.md
+@@ -176,3 +176,4 @@ When the entry is valid:
+ 
+ Next: [9. Teaching and demonstration plan](09-teaching-plan.md), and
+ [10. Java Lab assessments](10-lab-assessments.md): open and close lab assessments, collect, mark and replay every student's work.
++[11. Java Lab on Streamlit](11-streamlit-apps.md): the student app (real JDK 21) and the teacher app.
+diff --git a/docs/10-lab-assessments.md b/docs/10-lab-assessments.md
+index f7605f8..c20f3f6 100644
+--- a/docs/10-lab-assessments.md
++++ b/docs/10-lab-assessments.md
+@@ -213,6 +213,8 @@ characters, 10-30 active minutes, several runs and checks.
+   `ArrayIndexOutOfBoundsException` (Lesson 13), and some exception messages are worded differently (Experiment 6a).
+   The gradebook always marks on the real JDK 21. The compiler (about 5 MB) loads once per visit; compiling takes
+   1-2 seconds.
++* **Student app (guide 11).** The Streamlit student app runs the same assessments on the real JDK 21 on a server,
++  so files, serialization and JDBC work there too; its packages are identical in format and marked alike.
+ * **Accounts.** Each student needs a GitHub account; the GitHub username is visible on the (encrypted) issue.
+ * **Free limits.** Public repository: Actions minutes are free. Private gradebook: GitHub Free includes
+   2,000 minutes a month; one collection of 60 students x 2 questions takes about 10-20 minutes.
+diff --git a/docs/11-streamlit-apps.md b/docs/11-streamlit-apps.md
+new file mode 100644
+index 0000000..1c56299
+--- /dev/null
++++ b/docs/11-streamlit-apps.md
+@@ -0,0 +1,185 @@
++# 11. Java Lab on Streamlit: student app and teacher app
++
++Two free apps on Streamlit Community Cloud, deployed from this repository. They work together with
++everything in guide 10 (session control, intake robot, private gradebook); nothing there changes.
++
++| App | Entry file | Who | What |
++|-----|-----------|-----|------|
++| **Student app** | `apps/student/app.py` | students, public | type (paste and drop blocked and logged), **Run** and **Check** on the real JDK 21 on the server, **Submit**: encrypted package, then a GitHub issue as on `lab.html`. Every course program runs, including files (Exp. 8-10), serialization (11-12) and JDBC (16, on an in-memory database in MySQL mode) |
++| **Teacher app** | `apps/teacher/app.py` | you, private | **Sessions** open and close; **Submissions** live counts; **Marks** start the gradebook and read marks, flags and similar pairs; **Replay** how each program was typed; **Questions** new questions with hidden cases (expected outputs made on Java 21); **Keys** create and publish the key pair |
++
++Design rules that keep it safe on a shared free server:
++
++* The student app holds **no secret**. It runs student programs, so it must have nothing worth taking: it
++  encrypts with your **public** key only, and students still submit through a GitHub issue (GitHub's clock
++  decides acceptance; every student needs a free GitHub account, as for `lab.html`).
++* The teacher app holds your token and password and **never runs student code**.
++* Student programs run one per Java process under the Java 21 Security Manager (no files outside their own
++  fresh folder, no network, no processes, no environment variables, no private reflection), with limits of
++  10 s, 128 MB heap, about 128 threads, 1 MB per file, 64 KB of output; at most 4 run at the same time, the
++  others wait a moment. These are the gradebook's rules, so Check predicts the marks.
++
++---
++
++## Part A. One-time set-up (about 40 minutes)
++
++### A1. Put this update into the repository
++In a Codespace of `parthiban-loganathan/Java` (**Code, Codespaces, Create codespace on main**): drag the
++file `java-lab-streamlit.patch` into the file list on the left, then in the terminal:
++
++```bash
++git am java-lab-streamlit.patch && git push
++```
++
++Tab **Actions**: **CI** must end green (all six jobs, including *Streamlit apps*).
++
++### A2. Website and gradebook (if not done yet)
++1. **Settings, Pages, Build and deployment, Source: GitHub Actions**; then **Actions**, the failed run of
++   **Deploy website to GitHub Pages**, **Re-run all jobs**.
++2. The private repository `java-lab-gradebook`: guide 10, step A4 (its secret `LAB_PRIVATE_KEY` is set in A5
++   below).
++
++### A3. A token for the teacher app
++github.com, your picture, **Settings, Developer settings, Personal access tokens, Fine-grained tokens,
++Generate new token**:
++
++| Field | Value |
++|-------|-------|
++| Token name | `java-lab-teacher-app` |
++| Expiration | the end of the semester |
++| Repository access | **Only select repositories**: `Java`, `java-lab-gradebook` |
++| Permissions, Repository | **Actions**: Read and write; **Contents**: Read and write; **Issues**: Read-only (Metadata: Read-only is added by GitHub) |
++
++**Generate token** and copy it (it starts with `github_pat_`; it is shown once).
++
++### A4. Deploy the two apps
++Open `https://share.streamlit.io`, **Continue with GitHub**, allow access to your repositories.
++
++**Student app:** **Create app**, *Deploy a public app from GitHub*:
++
++| Field | Value |
++|-------|-------|
++| Repository | `parthiban-loganathan/Java` |
++| Branch | `main` |
++| Main file path | `apps/student/app.py` |
++| App URL | for example `vit-java-lab` |
++| Advanced settings, Python version | `3.12` (the version CI tests) |
++
++**Deploy**. No secrets. The first start takes 1-2 minutes (it downloads Java 21).
++
++**Teacher app:** **Create app** again with Main file path `apps/teacher/app.py`, App URL for example
++`vit-java-lab-teacher`, Python `3.12`, and in **Advanced settings, Secrets**:
++
++```toml
++TEACHER_PASSWORD = "a long password only you know"
++GITHUB_TOKEN = "github_pat_..."
++LAB_REPO = "parthiban-loganathan/Java"
++GRADEBOOK_REPO = "parthiban-loganathan/java-lab-gradebook"
++```
++
++**Deploy**. Then make it private: in the app, **Share** (top right), *Only specific people can view this
++app*, add your e-mail (Community Cloud allows one private app; this is the one). The password stays as a
++second lock.
++
++### A5. Key pair (once per course)
++Teacher app, tab **Keys**, **Create a new key pair**:
++1. **Download lab-private-key.pem**; keep it in a password manager or an encrypted drive.
++2. Gradebook: **Settings, Secrets and variables, Actions**, secret `LAB_PRIVATE_KEY` = the whole file.
++3. Tick the box, **Publish the public key**.
++
++(The website's Teacher tools page does the same.)
++
++### A6. Optional
++* Point `lab.html` to the student app: in `site/assets/js/common.js` set
++  `studentApp: 'https://vit-java-lab.streamlit.app'` and commit.
++* More resources: Community Cloud gives educational apps more CPU and memory on request
++  (`https://info.snowflake.com/streamlit-resource-increase-request.html`); recommended for 41-80
++  students at the same time.
++
++### A7. Check the whole chain once (15 minutes)
++Teacher app, **Sessions**, open `T00` with `Q01`, 20 minutes. On a phone or a private window open the
++student app, register number `24BCL0001`, a name, **Start**, choose **T00** and **Q01**, type the program,
++**Run**, **Check** (*2 of 2*), **Submit**, copy the package, **Open GitHub**, paste, **Create**: within a
++minute the reply says **Accepted**. **Close** `T00`. **Marks**, **Collect and mark now**; after 3-6 minutes
++**Refresh**: the test student with 6/6. **Replay**: the typing. Label the test issue `lab-ignore`.
++
++---
++
++## Part B. Every lab session
++
++| When | Teacher app | Students (student app) |
++|------|-------------|------------------------|
++| 10 min before | open the **student app** once (it sleeps after 12 h without visitors; the first visit wakes it, 1-2 min) | |
++| Start | **Sessions, Open**: session (`W05`, or `W05-A` per batch), questions, minutes (0 = until you close), title | sidebar: register number, full name, **Start**; choose the session and question |
++| During | **Submissions**: accepted and rejected as they come | type, **Run** (keyboard input in the box), **Check**, **Submit**, copy, **Open GitHub**, paste, **Create**; submit again to improve: the last accepted one counts |
++| End | **Sessions, Close** | |
++| After | **Marks, Collect and mark now**; read *Marks per student*, flags, *Similar programs*; download the CSVs; **Replay** flagged students | |
++
++Shared lab PCs: students press **Remove my work from this computer** in the sidebar before leaving. Work is
++saved in the browser after every keystroke; a reload restores it.
++
++---
++
++## Part C. A new question with hidden cases (Questions tab)
++
++1. Question id (`Q07`), statement in Markdown (first line `# Q07 Title`; state the exact input order and
++   output format), your solution (`Main.java`), sample inputs (shown to students) and hidden inputs
++   (boundaries, invalid and large values), cases separated by a line `---`.
++2. **Run the solution on every case**: the app runs it on Java 21 and shows every output.
++3. **Save solution and marking cases in the gradebook** (`solutions/Q07`, `tests/Q07`: samples first, then hidden).
++4. **Publish statement and samples to students** (`lab/questions/Q07`) shortly before the lab if the question
++   should stay unseen: the public repository can be read by anyone.
++
++Course programs (`L01`-`L14`, `E01a`-`E16`) need nothing: their cases are already in the gradebook template.
++
++---
++
++## Part D. Limits (stated plainly)
++
++* **Free hosting.** Community Cloud's limits are shared and may change; the app queues programs so that a burst
++  of Run presses does not fail, but at the minimum CPU share answers can take several seconds. Apply for more
++  resources (A6) and keep the website's `lab.html` as the fallback: both produce the same packages.
++* **Security Manager.** It is deprecated by the Java project and permanently disabled from Java 24 (JEP 486); the
++  app pins Java 21, where it works. It is one layer: the app holds no secret, runs each program in its own process with operating
++  system limits, and keeps no student work on the server.
++* **Paste blocking** is a deterrent, not a lock (guide 10, Part H). Packages from the student app also carry
++  the server's own log of every Run, Check and Submit (time, code fingerprint, outcome), visible in Replay.
++* **Experiment 16** runs against H2 in MySQL mode, created by `setup.sql` for every run; SQL that only MySQL
++  accepts may behave differently. CI keeps checking the program against a real MySQL 8.4 server.
++
++---
++
++## Part E. Troubleshooting
++
++| Symptom | Fix |
++|---------|-----|
++| Student app shows *Zzzz, this app has gone to sleep* | press the button on that page (anyone can); open it before the lab |
++| *Java could not be prepared on the server* | **Manage app** (bottom right, signed in), **Reboot app**; the download is retried |
++| *the server is busy; press Run again* | many runs at once: press again after a few seconds; apply for more resources (A6) |
++| Submit disabled: *The teacher has not published the submission key yet* | Part A5 |
++| Banner says no assessment open although you opened one | wait up to 20 s and reload; check **Sessions, Lab session control runs** is green |
++| Teacher app: *GitHub 401* or *403* | the token expired or lacks a permission (A3); paste a new one in the app's Secrets |
++| Teacher app: *GitHub 404* for the gradebook | `GRADEBOOK_REPO` in the Secrets, and the token includes that repository |
++| *This app has gone over its resource limits* | **Reboot app**; apply for more resources |
++
++---
++
++## Part F. Running and testing on a PC or in a Codespace
++
++```bash
++pip install -r apps/student/requirements.txt
++```
++
++```bash
++streamlit run apps/student/app.py
++```
++
++```bash
++python3 -m unittest discover -s apps/tests -v
++```
++
++The tests compile and run every course program in the sandbox and compare with the expected outputs, try
++hostile programs (files, environment, processes, network, reflection, endless loops, floods, thread and memory
++bombs), and drive both apps headless against a simulated GitHub. The teacher app locally reads
++`TEACHER_PASSWORD`, `GITHUB_TOKEN`, `LAB_REPO` and `GRADEBOOK_REPO` from the environment or from
++`.streamlit/secrets.toml` (ignored by git).
+diff --git a/docs/index.json b/docs/index.json
+index 97464e0..50ac2c2 100644
+--- a/docs/index.json
++++ b/docs/index.json
+@@ -64,5 +64,11 @@
+     "title": "10. Java Lab assessments: set up, open, close, collect, mark",
+     "file": "10-lab-assessments.md",
+     "repoPath": "docs/"
++  },
++  {
++    "id": "11-streamlit-apps",
++    "title": "11. Java Lab on Streamlit: student app and teacher app",
++    "file": "11-streamlit-apps.md",
++    "repoPath": "docs/"
+   }
+ ]
+\ No newline at end of file
+diff --git a/lab-system/gradebook/.github/workflows/collect.yml b/lab-system/gradebook/.github/workflows/collect.yml
+index 0162688..5bebcc1 100644
+--- a/lab-system/gradebook/.github/workflows/collect.yml
++++ b/lab-system/gradebook/.github/workflows/collect.yml
+@@ -26,19 +26,19 @@ env:
+ 
+ jobs:
+   collect:
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     timeout-minutes: 180
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v5
+       - name: Lab tools (from the public lab repository)
+-        uses: actions/checkout@v4
++        uses: actions/checkout@v5
+         with:
+           repository: ${{ env.LAB_REPOSITORY }}
+           path: .lab-public
+           sparse-checkout: |
+             tools/lab
+             lab-system/grader
+-      - uses: actions/setup-python@v5
++      - uses: actions/setup-python@v6
+         with:
+           python-version: '3.12'
+       - run: pip install -q cryptography==46.0.3
+diff --git a/site/assets/js/common.js b/site/assets/js/common.js
+index fb0bac7..c70722f 100644
+--- a/site/assets/js/common.js
++++ b/site/assets/js/common.js
+@@ -12,6 +12,9 @@ export const LAB = {
+   repo: 'parthiban-loganathan/Java',
+   branch: 'main',
+   raw: 'https://raw.githubusercontent.com/parthiban-loganathan/Java/main/',
++  // Address of the Streamlit student app (docs/11-streamlit-apps.md), e.g. 'https://vit-java-lab.streamlit.app'.
++  // When set, lab.html points students to it: programs there run on the real JDK 21 (files, serialization, JDBC).
++  studentApp: '',
+ };
+ 
+ /** URL of a new GitHub issue from an issue form, with fields pre-filled (field ids as query keys). */
+diff --git a/site/assets/js/lab.js b/site/assets/js/lab.js
+index 345f210..370071d 100644
+--- a/site/assets/js/lab.js
++++ b/site/assets/js/lab.js
+@@ -33,12 +33,21 @@ function toast(text) {
+   setTimeout(() => el.remove(), 4000);
+ }
+ 
+-/** A file of the lab folder: fresh from GitHub, or the copy published with the website. */
++/**
++ * A file of the lab folder: fresh from GitHub, or the copy published with the website.
++ * A whole class shares one public IP, and GitHub limits unauthenticated raw downloads per IP: after a
++ * 403/429 the page uses the website's copy for 10 minutes (the "Lab session control" workflow
++ * republishes it after every open and close).
++ */
++let rawPausedUntil = 0;
+ async function labFile(path, json = false) {
+-  for (const url of [`${LAB.raw}lab/${path}?t=${Date.now()}`, `lab/${path}`]) {
++  const urls = Date.now() < rawPausedUntil ? [`lab/${path}?t=${Date.now()}`]
++    : [`${LAB.raw}lab/${path}?t=${Date.now()}`, `lab/${path}?t=${Date.now()}`];
++  for (const url of urls) {
+     try {
+       const r = await fetch(url, { cache: 'no-store' });
+       if (r.ok) return json ? await r.json() : await r.text();
++      if ((r.status === 429 || r.status === 403) && url.startsWith(LAB.raw)) rawPausedUntil = Date.now() + 600000;
+     } catch { /* try the next source */ }
+   }
+   return null;
+@@ -324,9 +333,21 @@ async function selectors() {
+ }
+ 
+ async function main() {
++  if (LAB.studentApp) {
++    const note = document.createElement('div');
++    note.className = 'notice ok';
++    note.innerHTML = `The lab also runs in the <a href="${escapeHtml(LAB.studentApp)}">Java Lab app</a>, on the real JDK 21 ` +
++      '(files, serialization and databases included). Submissions from both are marked alike.';
++    $('session-banner').before(note);
++  }
+   [control, catalog] = await Promise.all([labFile('control.json', true), fetchJson('course/catalog.json')]);
+   banner();
+-  setInterval(async () => { const c = await labFile('control.json', true); if (c) { control = c; banner(); updateSubmit(); } }, 60000);
++  const poll = async () => {          // every 60-80 s: a class does not poll in step
++    const c = await labFile('control.json', true);
++    if (c) { control = c; banner(); updateSubmit(); }
++    setTimeout(poll, 60000 + Math.random() * 20000);
++  };
++  setTimeout(poll, 60000 + Math.random() * 20000);
+   loadIdentity();
+   identityShown();
+   const qid = await selectors();
+diff --git a/starter-template/.github/workflows/deploy.yml b/starter-template/.github/workflows/deploy.yml
+index f3b6fda..bdcd2e2 100644
+--- a/starter-template/.github/workflows/deploy.yml
++++ b/starter-template/.github/workflows/deploy.yml
+@@ -18,17 +18,17 @@ concurrency:
+ 
+ jobs:
+   build:
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     steps:
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-java@v4
++      - uses: actions/checkout@v5
++      - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: '21'
+           cache: maven
+       - name: Run tests and compile Java to JavaScript
+         run: bash build.sh dist
+-      - uses: actions/upload-pages-artifact@v3
++      - uses: actions/upload-pages-artifact@v5
+         if: github.ref == 'refs/heads/main'
+         with:
+           path: dist
+@@ -36,11 +36,11 @@ jobs:
+   deploy:
+     if: github.ref == 'refs/heads/main'
+     needs: build
+-    runs-on: ubuntu-latest
++    runs-on: ubuntu-24.04
+     environment:
+       name: github-pages
+       url: ${{ steps.deployment.outputs.page_url }}
+     steps:
+-      - uses: actions/configure-pages@v5
++      - uses: actions/configure-pages@v6
+       - id: deployment
+-        uses: actions/deploy-pages@v4
++        uses: actions/deploy-pages@v5
+-- 
+2.43.0
+
